@@ -1,6 +1,10 @@
 import json
 import time
 
+from strategies.strategy_engine import (
+    strategy_engine
+)
+
 from market_data.market_data import (
     fetch_market_data
 )
@@ -61,11 +65,14 @@ while True:
         # AI DECISION
         # =========================
 
+        decision = strategy_engine(df)
+
         ai_response = get_ai_decision(
-            market_summary
+            market_summary,
+            decision["action"]
         )
 
-        decision = json.loads(ai_response)
+        decision["reason"] = ai_response
 
         print("\n=== AI DECISION ===")
 

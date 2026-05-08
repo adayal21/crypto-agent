@@ -1,29 +1,24 @@
 import ollama
 
-def get_ai_decision(market_summary):
+def get_ai_decision(
+    market_summary,
+    action
+):
 
     prompt = f"""
 You are an AI crypto trading analyst.
 
-You must analyze the market summary and return ONLY ONE trading decision.
+The trading strategy already selected:
 
-Rules:
-- Choose exactly one:
-  BUY
-  SELL
-  HOLD
+ACTION: {action}
 
-- Return valid JSON only.
+Your task:
+- Explain briefly WHY this action makes sense.
+- Use RSI, MACD, ATR and trend context.
+- Return ONLY the explanation text.
+- No JSON.
 - No markdown.
-- No extra text.
-
-Format:
-
-{{
-    "action": "BUY or SELL or HOLD",
-    "confidence": 0.0,
-    "reason": "short reasoning"
-}}
+- Keep it under 2 sentences.
 
 Market Summary:
 {market_summary}
