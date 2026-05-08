@@ -29,16 +29,28 @@ def detect_trade_setup(
     if (
         trend_bullish
         and higher_tf_bullish
-        and macd_bullish
-        and 50 <= rsi <= 70
+        and 50 <= rsi <= 75
     ):
 
-        # Trend-following long: both timeframes and momentum agree.
+        setup_quality = "strong"
+
+        reason = (
+            "Bullish trend aligned with higher timeframe confirmation."
+        )
+
+        # Momentum confirmation improves setup quality
+        if not macd_bullish:
+
+            setup_quality = "moderate"
+
+            reason = (
+                "Bullish trend present but momentum confirmation is weaker."
+            )
+
         return {
             "setup_type": "LONG_SETUP",
-            "setup_quality": "moderate",
-            "reason":
-                "Bullish trend with positive momentum confirmation."
+            "setup_quality": setup_quality,
+            "reason": reason
         }
 
     # =========================

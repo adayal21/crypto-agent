@@ -1,16 +1,16 @@
 import sys
 from pathlib import Path
 
-import pandas as pd
 import streamlit as st
 
 DASHBOARD_DIR = Path(__file__).resolve().parent
+APP_DIR = DASHBOARD_DIR.parent
 
-if str(DASHBOARD_DIR) not in sys.path:
+if str(APP_DIR) not in sys.path:
 
     sys.path.insert(
         0,
-        str(DASHBOARD_DIR)
+        str(APP_DIR)
     )
 
 from analytics import (
@@ -30,6 +30,14 @@ st.title("Crypto Agent Dashboard")
 
 trades = load_trades()
 portfolios = load_portfolios(trades)
+
+if portfolios.empty:
+
+    st.warning(
+        "No portfolio data available."
+    )
+
+    st.stop()
 
 asset_options = sorted(
     portfolios["asset_symbol"].unique()

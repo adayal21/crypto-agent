@@ -1,7 +1,10 @@
 STOP_LOSS_PNL = -2.0
+
 TAKE_PROFIT_PNL = 4.0
+
 TRAILING_STOP_ACTIVATION_PNL = 5.0
-TRAILING_STOP_EXIT_PNL = 3.0
+
+TRAILING_STOP_DRAWDOWN = 2.0
 
 
 def evaluate_position_management(
@@ -25,7 +28,13 @@ def evaluate_position_management(
         unrealized_pnl
     )
 
-    portfolio["highest_unrealized_pnl"] = highest_unrealized_pnl
+    portfolio[
+        "highest_unrealized_pnl"
+    ] = highest_unrealized_pnl
+
+    # =========================
+    # STOP LOSS
+    # =========================
 
     if unrealized_pnl <= STOP_LOSS_PNL:
 
@@ -33,8 +42,13 @@ def evaluate_position_management(
             "action": "SELL",
             "confidence": 1.0,
             "reason":
-                f"Stop loss triggered at {unrealized_pnl:.2f}% PnL."
+                f"Stop loss triggered at "
+                f"{unrealized_pnl:.2f}% PnL."
         }
+
+    # =========================
+    # TAKE PROFIT
+    # =========================
 
     if unrealized_pnl >= TAKE_PROFIT_PNL:
 
@@ -42,12 +56,24 @@ def evaluate_position_management(
             "action": "SELL",
             "confidence": 1.0,
             "reason":
-                f"Take profit triggered at {unrealized_pnl:.2f}% PnL."
+                f"Take profit triggered at "
+                f"{unrealized_pnl:.2f}% PnL."
         }
 
+    # =========================
+    # TRAILING STOP
+    # =========================
+
+    drawdown_from_peak = (
+        highest_unrealized_pnl
+        - unrealized_pnl
+    )
+
     if (
-        highest_unrealized_pnl >= TRAILING_STOP_ACTIVATION_PNL
-        and unrealized_pnl <= TRAILING_STOP_EXIT_PNL
+        highest_unrealized_pnl
+        >= TRAILING_STOP_ACTIVATION_PNL
+        and drawdown_from_peak
+        >= TRAILING_STOP_DRAWDOWN
     ):
 
         return {
@@ -55,9 +81,10 @@ def evaluate_position_management(
             "confidence": 1.0,
             "reason":
                 (
-                    "Trailing stop triggered after profit fell from "
-                    f"{highest_unrealized_pnl:.2f}% to "
-                    f"{unrealized_pnl:.2f}%."
+                    "Trailing stop triggered after "
+                    f"profit fell from "
+                    f"{highest_unrealized_pnl:.2f}% "
+                    f"to {unrealized_pnl:.2f}%."
                 )
         }
 

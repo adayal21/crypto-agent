@@ -1,7 +1,7 @@
 import json
 import os
 
-PORTFOLIO_DIR = "app/paper_trading"
+PORTFOLIO_DIR = "app/runtime_data"
 
 
 def get_asset_key(asset_symbol):

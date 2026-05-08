@@ -1,17 +1,28 @@
 import json
 from pathlib import Path
-
+from config.settings import (
+    RUNTIME_DATA_DIR
+)
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-PAPER_TRADING_DIR = PROJECT_ROOT / "app" / "paper_trading"
-TRADE_HISTORY_FILE = PAPER_TRADING_DIR / "trade_history.csv"
+TRADE_HISTORY_FILE = (
+    RUNTIME_DATA_DIR
+    / "trade_history.csv"
+)
 INVESTMENT_AMOUNT = 1000
 
 PORTFOLIO_FILES = {
-    "BTC/USDT": PAPER_TRADING_DIR / "btc_portfolio.json",
-    "ETH/USDT": PAPER_TRADING_DIR / "eth_portfolio.json",
-    "SOL/USDT": PAPER_TRADING_DIR / "sol_portfolio.json"
+    "BTC/USDT":
+        RUNTIME_DATA_DIR
+        / "btc_portfolio.json",
+
+    "ETH/USDT":
+        RUNTIME_DATA_DIR
+        / "eth_portfolio.json",
+
+    "SOL/USDT":
+        RUNTIME_DATA_DIR
+        / "sol_portfolio.json"
 }
 
 TRADE_COLUMNS = [

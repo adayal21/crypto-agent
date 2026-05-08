@@ -10,7 +10,7 @@ def log_market_cycle(
 
     # Keep a readable audit trail of each market scan.
     with open(
-        'market_analysis_log.txt',
+        'app/runtime_data/market_analysis_log.txt',
         mode='a'
     ) as file:
 

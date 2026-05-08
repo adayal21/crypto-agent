@@ -44,7 +44,22 @@ Rules:
 - Choose exactly one:
     BUY
     SELL
+    HOLD_POSITION
     NO_ACTION
+
+Definitions:
+
+BUY:
+Open a new position.
+
+SELL:
+Exit an existing position.
+
+HOLD_POSITION:
+Continue holding an existing open position.
+
+NO_ACTION:
+Remain out of the market with no position.
 
 - Be decisive.
 - Moderate-risk setups are acceptable.
@@ -77,14 +92,12 @@ Rules:
 Format:
 
 {{
-    "action": "BUY or SELL or NO_ACTION",
+    "action": "BUY or SELL or HOLD_POSITION or NO_ACTION",
     "confidence": 0.0,
     "reason": "short reasoning"
 }}
 
 Current Position Information:
-
-
 
 {asset_name} Holdings:
 {asset_holdings}

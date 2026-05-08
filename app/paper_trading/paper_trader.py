@@ -104,6 +104,10 @@ def execute_paper_trade(
 
             print(f"\nNo {asset_symbol} holdings to sell.")
 
+    elif action == "HOLD_POSITION":
+
+        print("\nHolding existing position.")
+
     else:
 
         print("\nNO ACTION")

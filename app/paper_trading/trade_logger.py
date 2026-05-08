@@ -2,7 +2,7 @@ import csv
 from datetime import datetime
 
 TRADE_LOG_FILE = (
-    "app/paper_trading/trade_history.csv"
+    "app/runtime_data/trade_history.csv"
 )
 
 def log_trade(
