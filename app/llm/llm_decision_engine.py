@@ -1,12 +1,27 @@
+import json
+
 import ollama
 
 
 def get_ai_decision(
     market_state,
     trade_setup,
-    btc_holdings,
+    asset_symbol,
+    asset_holdings,
     unrealized_pnl
 ):
+
+    asset_name = asset_symbol.split("/")[0]
+
+    market_state_payload = json.dumps(
+        market_state,
+        indent=2
+    )
+
+    trade_setup_payload = json.dumps(
+        trade_setup,
+        indent=2
+    )
 
     # The LLM validates an existing setup; it does not create new signals.
     prompt = f"""
@@ -37,13 +52,20 @@ Rules:
 - If setup quality and trend alignment are reasonable,
   execution is allowed.
 
-- If currently holding BTC:
+- If currently holding {asset_name}:
     - consider trend continuation
     - consider unrealized profit/loss
     - avoid unnecessary exits during healthy trends
     - avoid emotional reactions to short-term noise
 
-- If not holding BTC:
+- If currently holding {asset_name} and no new setup exists:
+    - evaluate whether the current position should still be held
+    - consider trend continuation
+    - consider unrealized profit/loss
+    - SELL is allowed if reversal risk becomes significant
+    - NO_ACTION means continue holding the existing position
+
+- If not holding {asset_name}:
     - BUY is allowed if setup quality is reasonable
     - NO_ACTION means stay out of the market
 
@@ -64,17 +86,17 @@ Current Position Information:
 
 
 
-BTC Holdings:
-{btc_holdings}
+{asset_name} Holdings:
+{asset_holdings}
 
 Unrealized PnL:
 {unrealized_pnl:.2f}%
 
 Market State:
-{market_state}
+{market_state_payload}
 
 Trade Setup:
-{trade_setup}
+{trade_setup_payload}
 """
 
     response = ollama.chat(

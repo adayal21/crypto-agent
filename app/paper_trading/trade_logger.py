@@ -6,10 +6,11 @@ TRADE_LOG_FILE = (
 )
 
 def log_trade(
+    asset_symbol,
     status,
     action,
     confidence,
-    btc_price,
+    asset_price,
     portfolio_value,
     reason
 ):
@@ -26,10 +27,11 @@ def log_trade(
 
         writer.writerow([
             datetime.now(),
+            asset_symbol,
             status,
             action,
             confidence,
-            btc_price,
+            asset_price,
             portfolio_value,
             reason
         ])

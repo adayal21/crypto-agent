@@ -7,15 +7,16 @@ from paper_trading.portfolio_manager import (
 
 def execute_paper_trade(
     decision,
-    btc_price
+    asset_price,
+    asset_symbol
 ):
 
     # Load the latest simulated account before applying the AI decision.
-    portfolio = load_portfolio()
+    portfolio = load_portfolio(asset_symbol)
 
     cash_balance = portfolio["cash_balance"]
 
-    btc_holdings = portfolio["btc_holdings"]
+    asset_holdings = portfolio["asset_holdings"]
 
     avg_entry_price = portfolio.get(
         "avg_entry_price",
@@ -44,11 +45,11 @@ def execute_paper_trade(
 
     elif action == "BUY":
 
-        if btc_holdings > 0:
+        if asset_holdings > 0:
 
             execution_status = "SKIPPED_ALREADY_HOLDING"
 
-            print("\nAlready holding BTC.")
+            print(f"\nAlready holding {asset_symbol}.")
             print("Skipping additional BUY.")
 
         else:
@@ -58,15 +59,17 @@ def execute_paper_trade(
 
             if cash_balance >= investment_amount:
 
-                btc_bought = (
-                    investment_amount / btc_price
+                asset_bought = (
+                    investment_amount / asset_price
                 )
 
                 cash_balance -= investment_amount
 
-                btc_holdings += btc_bought
+                asset_holdings += asset_bought
 
-                avg_entry_price = btc_price
+                avg_entry_price = asset_price
+
+                portfolio["highest_unrealized_pnl"] = 0
 
                 execution_status = "EXECUTED_BUY"
 
@@ -80,14 +83,16 @@ def execute_paper_trade(
 
     elif action == "SELL":
 
-        if btc_holdings > 0:
+        if asset_holdings > 0:
 
             cash_balance += (
-                btc_holdings * btc_price
+                asset_holdings * asset_price
             )
 
-            btc_holdings = 0
+            asset_holdings = 0
             avg_entry_price = 0
+
+            portfolio["highest_unrealized_pnl"] = 0
 
             execution_status = "EXECUTED_SELL"
 
@@ -97,7 +102,7 @@ def execute_paper_trade(
 
             execution_status = "SKIPPED_NO_HOLDINGS"
 
-            print("\nNo BTC holdings to sell.")
+            print(f"\nNo {asset_symbol} holdings to sell.")
 
     else:
 
@@ -109,11 +114,18 @@ def execute_paper_trade(
 
     portfolio["cash_balance"] = cash_balance
 
-    portfolio["btc_holdings"] = btc_holdings
+    portfolio["asset_holdings"] = asset_holdings
 
     portfolio["avg_entry_price"] = avg_entry_price
+
+    if asset_holdings <= 0:
+
+        portfolio["highest_unrealized_pnl"] = 0
     
-    save_portfolio(portfolio)
+    save_portfolio(
+        portfolio,
+        asset_symbol
+    )
 
     # =========================
     # PORTFOLIO STATUS
@@ -121,15 +133,16 @@ def execute_paper_trade(
 
     portfolio_value = (
         cash_balance
-        + (btc_holdings * btc_price)
+        + (asset_holdings * asset_price)
     )
 
     # Log both the requested action and what actually happened.
     log_trade(
+        asset_symbol=asset_symbol,
         status=execution_status,
         action=action,
         confidence=confidence,
-        btc_price=btc_price,
+        asset_price=asset_price,
         portfolio_value=portfolio_value,
         reason=decision["reason"]
     )
@@ -138,6 +151,6 @@ def execute_paper_trade(
 
     print(f"Cash Balance: ${cash_balance:.2f}")
 
-    print(f"BTC Holdings: {btc_holdings:.6f}")
+    print(f"{asset_symbol} Holdings: {asset_holdings:.6f}")
 
     print(f"Portfolio Value: ${portfolio_value:.2f}")

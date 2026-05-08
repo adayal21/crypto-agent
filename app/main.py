@@ -21,6 +21,14 @@ from strategies.market_state_engine import (
     generate_market_state
 )
 
+from strategies.market_state_engine import (
+    generate_structured_market_state
+)
+
+from strategies.position_management_engine import (
+    evaluate_position_management
+)
+
 from llm.llm_decision_engine import (
     get_ai_decision
 )
@@ -29,9 +37,19 @@ from paper_trading.paper_trader import (
     execute_paper_trade
 )
 
-from paper_trading.paper_trader import (
+from paper_trading.portfolio_manager import (
     load_portfolio
 )
+
+from paper_trading.portfolio_manager import (
+    save_portfolio
+)
+
+ASSETS = [
+    "BTC/USDT",
+    "ETH/USDT",
+    "SOL/USDT"
+]
 
 # =========================
 # CONTINUOUS LOOP
@@ -39,168 +57,213 @@ from paper_trading.paper_trader import (
 
 while True:
 
-    try:
+    # One full cycle: scan every isolated asset portfolio.
+    print("\n========================")
+    print("NEW TRADING CYCLE")
+    print("========================")
 
-        # One full cycle: collect data, evaluate setup, then paper trade.
-        print("\n========================")
-        print("NEW TRADING CYCLE")
-        print("========================")
+    for asset_symbol in ASSETS:
 
-        # =========================
-        # FETCH MARKET DATA
-        # =========================
+        try:
 
-        df_5m = fetch_market_data(
-            symbol='BTC/USDT',
-            timeframe='5m'
-        )
+            asset_name = asset_symbol.split("/")[0]
 
-        df_1h = fetch_market_data(
-            symbol='BTC/USDT',
-            timeframe='1h'
-        )
+            print("\n------------------------")
+            print(f"ASSET: {asset_symbol}")
+            print("------------------------")
 
-        # =========================
-        # ADD INDICATORS
-        # =========================
+            # =========================
+            # FETCH MARKET DATA
+            # =========================
 
-        df_5m = add_indicators(df_5m)
+            df_5m = fetch_market_data(
+                symbol=asset_symbol,
+                timeframe='5m'
+            )
 
-        df_1h = add_indicators(df_1h)
+            df_1h = fetch_market_data(
+                symbol=asset_symbol,
+                timeframe='1h'
+            )
 
-        # =========================
-        # GENERATE SUMMARY
-        # =========================
+            # =========================
+            # ADD INDICATORS
+            # =========================
 
-        market_summary = generate_market_state(
-            df_5m,
-            df_1h
-        )
+            df_5m = add_indicators(df_5m)
 
-        print("\n=== MARKET STATE ===")
+            df_1h = add_indicators(df_1h)
 
-        print(market_summary)
+            # =========================
+            # GENERATE SUMMARY
+            # =========================
 
-        trade_setup = detect_trade_setup(
-            df_5m,
-            df_1h
-        )
+            market_summary = generate_market_state(
+                df_5m,
+                df_1h
+            )
 
-        print("\n=== TRADE SETUP ===")
+            market_context = generate_structured_market_state(
+                df_5m,
+                df_1h
+            )
 
-        print(trade_setup)
+            print("\n=== MARKET STATE ===")
 
-        log_market_cycle(
-            market_summary=market_summary,
-            trade_setup=trade_setup,
-            btc_price=df_5m.iloc[-1]['close']
-        )
+            print(market_summary)
 
-        # =========================
-        # LOAD PORTFOLIO STATE
-        # =========================
+            trade_setup = detect_trade_setup(
+                df_5m,
+                df_1h
+            )
 
-        portfolio = load_portfolio()
+            print("\n=== TRADE SETUP ===")
 
-        btc_holdings = portfolio[
-            "btc_holdings"
-        ]
+            print(trade_setup)
 
-        avg_entry_price = portfolio.get(
-            "avg_entry_price",
-            0
-        )
+            log_market_cycle(
+                asset_symbol=asset_symbol,
+                market_summary=market_summary,
+                trade_setup=trade_setup,
+                asset_price=df_5m.iloc[-1]['close']
+            )
 
-        current_price = (
-            df_5m.iloc[-1]['close']
-        )
+            # =========================
+            # LOAD PORTFOLIO STATE
+            # =========================
 
-        # =========================
-        # UNREALIZED PNL
-        # =========================
+            portfolio = load_portfolio(asset_symbol)
 
-        if (
-            btc_holdings > 0
-            and avg_entry_price > 0
-        ):
+            asset_holdings = portfolio[
+                "asset_holdings"
+            ]
 
-            # Percent gain/loss on the open BTC position.
-            unrealized_pnl = (
-                (
-                    current_price
-                    - avg_entry_price
+            avg_entry_price = portfolio.get(
+                "avg_entry_price",
+                0
+            )
+
+            current_price = (
+                df_5m.iloc[-1]['close']
+            )
+
+            # =========================
+            # UNREALIZED PNL
+            # =========================
+
+            if (
+                asset_holdings > 0
+                and avg_entry_price > 0
+            ):
+
+                # Percent gain/loss on the open asset position.
+                unrealized_pnl = (
+                    (
+                        current_price
+                        - avg_entry_price
+                    )
+                    / avg_entry_price
+                ) * 100
+
+            else:
+
+                unrealized_pnl = 0
+
+            print("\n=== POSITION STATUS ===")
+
+            print(
+                f"{asset_name} Holdings: "
+                f"{asset_holdings}"
+            )
+
+            print(
+                f"Average Entry Price: "
+                f"{avg_entry_price}"
+            )
+
+            print(
+                f"Unrealized PnL: "
+                f"{unrealized_pnl:.2f}%"
+            )
+
+            # =========================
+            # POSITION MANAGEMENT
+            # =========================
+
+            position_exit_decision = evaluate_position_management(
+                portfolio,
+                unrealized_pnl
+            )
+
+            if asset_holdings > 0:
+
+                save_portfolio(
+                    portfolio,
+                    asset_symbol
                 )
-                / avg_entry_price
-            ) * 100
 
-        else:
+            if position_exit_decision:
 
-            unrealized_pnl = 0
+                print("\n=== POSITION MANAGEMENT EXIT ===")
 
-        print("\n=== POSITION STATUS ===")
+                print(position_exit_decision)
 
-        print(
-            f"BTC Holdings: "
-            f"{btc_holdings}"
-        )
+                execute_paper_trade(
+                    decision=position_exit_decision,
+                    asset_price=current_price,
+                    asset_symbol=asset_symbol
+                )
 
-        print(
-            f"Average Entry Price: "
-            f"{avg_entry_price}"
-        )
+                continue
 
-        print(
-            f"Unrealized PnL: "
-            f"{unrealized_pnl:.2f}%"
-        )
+            # =========================
+            # NO SETUP FILTER
+            # =========================
 
-        # =========================
-        # NO SETUP FILTER
-        # =========================
+            if (
+                trade_setup["setup_type"] == "NO_SETUP"
+                and asset_holdings == 0
+            ):
 
-        if trade_setup["setup_type"] == "NO_SETUP":
+                # Skip the LLM only when there is no setup and no open position.
+                print("\nNo valid trade setup detected.")
 
-            # Skip the LLM when the rule-based setup engine finds nothing.
-            print("\nNo valid trade setup detected.")
+                continue
 
-            print("\nWaiting 5 minutes...\n")
+            # =========================
+            # AI DECISION
+            # =========================
 
-            time.sleep(300)
+            ai_response = get_ai_decision(
+                market_context,
+                trade_setup,
+                asset_symbol,
+                asset_holdings,
+                unrealized_pnl
+            )
 
-            continue
+            # Ollama is instructed to return JSON only.
+            decision = json.loads(ai_response)
 
-        # =========================
-        # AI DECISION
-        # =========================
+            print("\n=== AI DECISION ===")
 
-        ai_response = get_ai_decision(
-            market_summary,
-            trade_setup,
-            btc_holdings,
-            unrealized_pnl
-        )
+            print(decision)
 
-        # Ollama is instructed to return JSON only.
-        decision = json.loads(ai_response)
+            # =========================
+            # EXECUTE PAPER TRADE
+            # =========================
 
-        print("\n=== AI DECISION ===")
+            execute_paper_trade(
+                decision=decision,
+                asset_price=current_price,
+                asset_symbol=asset_symbol
+            )
 
-        print(decision)
+        except Exception as e:
 
-        # =========================
-        # EXECUTE PAPER TRADE
-        # =========================
+            print(f"\nERROR OCCURRED FOR {asset_symbol}:")
 
-        execute_paper_trade(
-            decision=decision,
-            btc_price=df_5m.iloc[-1]['close']
-        )
-
-    except Exception as e:
-
-        print("\nERROR OCCURRED:")
-
-        print(e)
+            print(e)
 
     # =========================
     # WAIT 5 MINUTES

@@ -2,9 +2,10 @@ from datetime import datetime
 
 
 def log_market_cycle(
+    asset_symbol,
     market_summary,
     trade_setup,
-    btc_price
+    asset_price
 ):
 
     # Keep a readable audit trail of each market scan.
@@ -24,7 +25,11 @@ def log_market_cycle(
         )
 
         file.write(
-            f"BTC PRICE: {btc_price}\n\n"
+            f"SYMBOL: {asset_symbol}\n"
+        )
+
+        file.write(
+            f"PRICE: {asset_price}\n\n"
         )
 
         file.write(

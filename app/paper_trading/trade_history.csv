@@ -1,2 +1,2 @@
-timestamp,status,action,confidence,btc_price,portfolio_value,reason
-2026-05-09 00:13:24.082732,EXECUTED_BUY,BUY,0.85,80180.2,10000.0,"The trade setup is of moderate quality and aligns well with the current bullish market trend, which has been strengthening. The bullish momentum confirmed by the MACD crossover further supports this decision. Given these factors, execution appears justified."
+timestamp,asset_symbol,status,action,confidence,asset_price,portfolio_value,reason
+2026-05-09 00:13:24.082732,BTC/USDT,EXECUTED_BUY,BUY,0.85,80180.2,10000.0,"The trade setup is of moderate quality and aligns well with the current bullish market trend, which has been strengthening. The bullish momentum confirmed by the MACD crossover further supports this decision. Given these factors, execution appears justified."

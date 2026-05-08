@@ -3,6 +3,47 @@ def generate_market_state(
         df_1h
     ):
 
+    market_state = generate_structured_market_state(
+        df_5m,
+        df_1h
+    )
+
+    readable_market_state = f"""
+Market State Analysis
+
+Trend State:
+{market_state["trend_state"]}
+
+Momentum State:
+{market_state["momentum_state"]}
+
+Trend Acceleration:
+{market_state["trend_acceleration"]}
+
+MACD State:
+{market_state["macd_state"]}
+
+Volatility State:
+{market_state["volatility_state"]}
+
+Trade Bias:
+{market_state["trade_bias"]}
+
+Higher Timeframe State:
+{market_state["higher_timeframe_state"]}
+
+Volume State:
+{market_state["volume_state"]}
+"""
+
+    return readable_market_state
+
+
+def generate_structured_market_state(
+        df_5m,
+        df_1h
+    ):
+
     # Use the latest 5-minute candle as the current market snapshot.
     latest = df_5m.iloc[-1]
 
@@ -185,32 +226,13 @@ def generate_market_state(
             "weak relative volume"
         )
 
-    market_state = f"""
-Market State Analysis
-
-Trend State:
-{trend_state}
-
-Momentum State:
-{momentum_state}
-
-Trend Acceleration:
-{trend_acceleration}
-
-MACD State:
-{macd_state}
-
-Volatility State:
-{volatility_state}
-
-Trade Bias:
-{trade_bias}
-
-Higher Timeframe State:
-{higher_tf_state}
-
-Volume State:
-{volume_state}
-"""
-
-    return market_state
+    return {
+        "trend_state": trend_state,
+        "momentum_state": momentum_state,
+        "trend_acceleration": trend_acceleration,
+        "macd_state": macd_state,
+        "volatility_state": volatility_state,
+        "trade_bias": trade_bias,
+        "higher_timeframe_state": higher_tf_state,
+        "volume_state": volume_state
+    }
