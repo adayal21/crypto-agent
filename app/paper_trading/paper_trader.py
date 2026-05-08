@@ -25,6 +25,8 @@ def execute_paper_trade(
 
     confidence = decision["confidence"]
 
+    execution_status = "SKIPPED_NO_ACTION"
+
     print("\n=== PAPER TRADING ===")
 
     # =========================
@@ -33,12 +35,16 @@ def execute_paper_trade(
 
     if confidence < 0.75:
 
+        execution_status = "SKIPPED_LOW_CONFIDENCE"
+
         print("\nConfidence too low.")
         print("NO TRADE EXECUTED")
 
     elif action == "BUY":
 
         if btc_holdings > 0:
+
+            execution_status = "SKIPPED_ALREADY_HOLDING"
 
             print("\nAlready holding BTC.")
             print("Skipping additional BUY.")
@@ -59,9 +65,13 @@ def execute_paper_trade(
 
                 avg_entry_price = btc_price
 
+                execution_status = "EXECUTED_BUY"
+
                 print("\nBUY EXECUTED")
 
             else:
+
+                execution_status = "SKIPPED_INSUFFICIENT_CASH"
 
                 print("\nNot enough cash.")
 
@@ -76,9 +86,13 @@ def execute_paper_trade(
             btc_holdings = 0
             avg_entry_price = 0
 
+            execution_status = "EXECUTED_SELL"
+
             print("\nSELL EXECUTED")
 
         else:
+
+            execution_status = "SKIPPED_NO_HOLDINGS"
 
             print("\nNo BTC holdings to sell.")
 
@@ -108,12 +122,13 @@ def execute_paper_trade(
     )
 
     log_trade(
-    action=action,
-    confidence=confidence,
-    btc_price=btc_price,
-    portfolio_value=portfolio_value,
-    reason=decision["reason"]
-)
+        status=execution_status,
+        action=action,
+        confidence=confidence,
+        btc_price=btc_price,
+        portfolio_value=portfolio_value,
+        reason=decision["reason"]
+    )
     
     print("\n=== PORTFOLIO STATUS ===")
 
