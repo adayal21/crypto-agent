@@ -9,6 +9,7 @@ def fetch_market_data(
     limit=100
 ):
 
+    # Fetch recent candles from Bybit in CCXT's standard OHLCV format.
     ohlcv = exchange.fetch_ohlcv(
         symbol,
         timeframe=timeframe,
@@ -27,6 +28,7 @@ def fetch_market_data(
         ]
     )
 
+    # Convert exchange timestamps from milliseconds into pandas datetimes.
     df['timestamp'] = pd.to_datetime(
         df['timestamp'],
         unit='ms'

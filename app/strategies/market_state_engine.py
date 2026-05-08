@@ -3,6 +3,7 @@ def generate_market_state(
         df_1h
     ):
 
+    # Use the latest 5-minute candle as the current market snapshot.
     latest = df_5m.iloc[-1]
 
     # =========================
@@ -22,6 +23,7 @@ def generate_market_state(
         > df_1h.iloc[-1]['ema_20']
     )
 
+    # EMA slope shows whether the short-term trend is gaining strength.
     ema_slope = (
         latest['ema_20']
         - df_5m.iloc[-5]['ema_20']
@@ -135,6 +137,7 @@ def generate_market_state(
         and "strong bullish" in momentum_state
     ):
 
+        # Trend, momentum, and MACD all point in the same direction.
         trade_bias = (
             "potential breakout continuation"
         )
@@ -171,6 +174,7 @@ def generate_market_state(
         > latest['volume_sma_20']
     ):
 
+        # High relative volume means current move has stronger participation.
         volume_state = (
             "high relative volume"
         )

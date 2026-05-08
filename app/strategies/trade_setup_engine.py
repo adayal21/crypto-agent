@@ -3,6 +3,7 @@ def detect_trade_setup(
     df_1h
 ):
 
+    # The latest 5-minute candle drives the immediate entry setup.
     latest = df_5m.iloc[-1]
 
     trend_bullish = (
@@ -32,6 +33,7 @@ def detect_trade_setup(
         and 50 <= rsi <= 70
     ):
 
+        # Trend-following long: both timeframes and momentum agree.
         return {
             "setup_type": "LONG_SETUP",
             "setup_quality": "moderate",
@@ -50,6 +52,7 @@ def detect_trade_setup(
         and rsi < 35
     ):
 
+        # Aggressive long: bearish trend, but momentum may be reversing.
         return {
             "setup_type": "REVERSAL_SETUP",
             "setup_quality": "aggressive",
@@ -68,6 +71,7 @@ def detect_trade_setup(
         and rsi < 45
     ):
 
+        # Downtrend continuation: bearish trend and momentum align.
         return {
             "setup_type": "SHORT_SETUP",
             "setup_quality": "moderate",

@@ -14,6 +14,7 @@ def log_trade(
     reason
 ):
 
+    # Append one row per AI decision, including skipped trade reasons.
     with open(
         TRADE_LOG_FILE,
         mode='a',

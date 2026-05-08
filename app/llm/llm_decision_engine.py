@@ -8,18 +8,7 @@ def get_ai_decision(
     unrealized_pnl
 ):
 
-    has_position = btc_holdings > 0
-
-    position_state = (
-        "OPEN_LONG_POSITION"
-        if has_position
-        else "NO_POSITION"
-    )
-
-    formatted_btc_holdings = (
-        f"{btc_holdings:.8f} BTC"
-    )
-
+    # The LLM validates an existing setup; it does not create new signals.
     prompt = f"""
 You are an AI trading evaluator.
 
@@ -48,17 +37,15 @@ Rules:
 - If setup quality and trend alignment are reasonable,
   execution is allowed.
 
-- If already holding a position:
-    - the current position state will be OPEN_LONG_POSITION
-    - BUY means adding to the existing position
-    - this paper trader does not add to existing BTC positions
-    - choose NO_ACTION when the best decision is to keep holding
-    - choose SELL only when exit risk is justified
+- If currently holding BTC:
     - consider trend continuation
     - consider unrealized profit/loss
     - avoid unnecessary exits during healthy trends
     - avoid emotional reactions to short-term noise
-    - avoid overtrading
+
+- If not holding BTC:
+    - BUY is allowed if setup quality is reasonable
+    - NO_ACTION means stay out of the market
 
 - Use NO_ACTION only if:
     - setup quality is weak
@@ -75,11 +62,10 @@ Format:
 
 Current Position Information:
 
-Position State:
-{position_state}
+
 
 BTC Holdings:
-{formatted_btc_holdings}
+{btc_holdings}
 
 Unrealized PnL:
 {unrealized_pnl:.2f}%

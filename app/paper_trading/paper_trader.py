@@ -10,6 +10,7 @@ def execute_paper_trade(
     btc_price
 ):
 
+    # Load the latest simulated account before applying the AI decision.
     portfolio = load_portfolio()
 
     cash_balance = portfolio["cash_balance"]
@@ -25,6 +26,7 @@ def execute_paper_trade(
 
     confidence = decision["confidence"]
 
+    # Stored in CSV so skipped decisions are separated from real trades.
     execution_status = "SKIPPED_NO_ACTION"
 
     print("\n=== PAPER TRADING ===")
@@ -51,6 +53,7 @@ def execute_paper_trade(
 
         else:
 
+            # Fixed sizing keeps the paper trader simple and predictable.
             investment_amount = 1000
 
             if cash_balance >= investment_amount:
@@ -121,6 +124,7 @@ def execute_paper_trade(
         + (btc_holdings * btc_price)
     )
 
+    # Log both the requested action and what actually happened.
     log_trade(
         status=execution_status,
         action=action,

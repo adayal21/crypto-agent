@@ -7,6 +7,7 @@ def log_market_cycle(
     btc_price
 ):
 
+    # Keep a readable audit trail of each market scan.
     with open(
         'market_analysis_log.txt',
         mode='a'

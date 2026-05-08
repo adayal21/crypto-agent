@@ -41,6 +41,7 @@ while True:
 
     try:
 
+        # One full cycle: collect data, evaluate setup, then paper trade.
         print("\n========================")
         print("NEW TRADING CYCLE")
         print("========================")
@@ -123,6 +124,7 @@ while True:
             and avg_entry_price > 0
         ):
 
+            # Percent gain/loss on the open BTC position.
             unrealized_pnl = (
                 (
                     current_price
@@ -158,6 +160,7 @@ while True:
 
         if trade_setup["setup_type"] == "NO_SETUP":
 
+            # Skip the LLM when the rule-based setup engine finds nothing.
             print("\nNo valid trade setup detected.")
 
             print("\nWaiting 5 minutes...\n")
@@ -177,6 +180,7 @@ while True:
             unrealized_pnl
         )
 
+        # Ollama is instructed to return JSON only.
         decision = json.loads(ai_response)
 
         print("\n=== AI DECISION ===")
