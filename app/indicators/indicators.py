@@ -7,6 +7,12 @@ def add_indicators(df):
         length=14
     )
 
+    df['volume_sma_20'] = (
+        df['volume']
+        .rolling(window=20)
+        .mean()
+    )
+
     df['ema_20'] = ta.ema(
         df['close'],
         length=20

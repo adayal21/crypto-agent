@@ -5,7 +5,7 @@ exchange = ccxt.bybit()
 
 def fetch_market_data(
     symbol='BTC/USDT',
-    timeframe='1h',
+    timeframe='5m',
     limit=100
 ):
 

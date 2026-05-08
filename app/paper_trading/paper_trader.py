@@ -16,6 +16,11 @@ def execute_paper_trade(
 
     btc_holdings = portfolio["btc_holdings"]
 
+    avg_entry_price = portfolio.get(
+        "avg_entry_price",
+        0
+    )
+
     action = decision["action"]
 
     confidence = decision["confidence"]
@@ -52,6 +57,8 @@ def execute_paper_trade(
 
                 btc_holdings += btc_bought
 
+                avg_entry_price = btc_price
+
                 print("\nBUY EXECUTED")
 
             else:
@@ -67,6 +74,7 @@ def execute_paper_trade(
             )
 
             btc_holdings = 0
+            avg_entry_price = 0
 
             print("\nSELL EXECUTED")
 
@@ -86,6 +94,8 @@ def execute_paper_trade(
 
     portfolio["btc_holdings"] = btc_holdings
 
+    portfolio["avg_entry_price"] = avg_entry_price
+    
     save_portfolio(portfolio)
 
     # =========================
