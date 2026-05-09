@@ -2,7 +2,7 @@ from datetime import datetime
 
 STOP_LOSS_PNL = -2.0
 
-TAKE_PROFIT_PNL = 4.0
+TAKE_PROFIT_PNL = 2.5
 
 TRAILING_STOP_ACTIVATION_PNL = 2.0
 

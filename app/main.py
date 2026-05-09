@@ -1,5 +1,7 @@
 import json
 import time
+import subprocess
+import sys
 
 from logger.market_logger import (
     log_market_cycle
@@ -26,7 +28,7 @@ from strategies.position_management_engine import (
     evaluate_position_management
 )
 
-from llm.llm_decision_engine import (
+from llm.openrouter_decision_engine import (
     get_ai_decision
 )
 
@@ -44,6 +46,34 @@ ASSETS = [
     "ETH/USDT",
     "SOL/USDT"
 ]
+
+# =========================
+# START STREAMLIT DASHBOARD
+# =========================
+
+try:
+
+    subprocess.Popen([
+
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        "app/dashboard/dashboard.py"
+
+    ])
+
+    print(
+        "\nStreamlit dashboard launched successfully."
+    )
+
+except Exception as e:
+
+    print(
+        "\nFailed to launch Streamlit dashboard:"
+    )
+
+    print(e)
 
 # =========================
 # CONTINUOUS LOOP

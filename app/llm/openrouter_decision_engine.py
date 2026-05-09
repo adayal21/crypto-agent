@@ -279,9 +279,30 @@ TRADE SETUP
         max_tokens=250
     )
 
-    return (
-        response
-        .choices[0]
-        .message
-        .content
-    )
+    content = (
+    response
+    .choices[0]
+    .message
+    .content
+)
+
+    content = content.strip()
+
+    if content.startswith("```json"):
+
+        content = (
+            content
+            .replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
+
+    elif content.startswith("```"):
+
+        content = (
+            content
+            .replace("```", "")
+            .strip()
+        )
+
+    return content
