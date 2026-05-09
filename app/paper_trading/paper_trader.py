@@ -1,4 +1,8 @@
-from paper_trading.trade_logger import log_trade
+from datetime import datetime
+
+from paper_trading.trade_logger import (
+    log_trade
+)
 
 from paper_trading.portfolio_manager import (
     load_portfolio,
@@ -9,7 +13,8 @@ from paper_trading.portfolio_manager import (
 def execute_paper_trade(
     decision,
     asset_price,
-    asset_symbol
+    asset_symbol,
+    unrealized_pnl=0
 ):
 
     portfolio = load_portfolio(
@@ -29,6 +34,11 @@ def execute_paper_trade(
         0
     )
 
+    scale_in_count = portfolio.get(
+        "scale_in_count",
+        0
+    )
+
     action = decision["action"]
 
     confidence = decision["confidence"]
@@ -45,13 +55,17 @@ def execute_paper_trade(
     # CONFIDENCE FILTER
     # =========================
 
-    if confidence < 0.65:
+    if (
+        action in ["BUY", "SELL"]
+        and confidence < 0.65
+    ):
 
         execution_status = (
             "SKIPPED_LOW_CONFIDENCE"
         )
 
         print("\nConfidence too low.")
+
         print("NO TRADE EXECUTED")
 
     # =========================
@@ -66,7 +80,11 @@ def execute_paper_trade(
 
         if asset_holdings > 0:
 
-            if confidence >= 0.90:
+            if (
+                unrealized_pnl > 0.5
+                and confidence >= 0.75
+                and scale_in_count < 3
+            ):
 
                 investment_amount = (
                     cash_balance * 0.05
@@ -101,6 +119,12 @@ def execute_paper_trade(
                     cash_balance -= (
                         investment_amount
                     )
+
+                    scale_in_count += 1
+
+                    portfolio[
+                        "scale_in_count"
+                    ] = scale_in_count
 
                     execution_status = (
                         "EXECUTED_SCALE_IN"
@@ -154,6 +178,16 @@ def execute_paper_trade(
                     "highest_unrealized_pnl"
                 ] = 0
 
+                portfolio[
+                    "scale_in_count"
+                ] = 0
+
+                portfolio[
+                    "position_open_timestamp"
+                ] = (
+                    datetime.utcnow().isoformat()
+                )
+
                 execution_status = (
                     "EXECUTED_BUY"
                 )
@@ -187,6 +221,18 @@ def execute_paper_trade(
 
             portfolio[
                 "highest_unrealized_pnl"
+            ] = 0
+
+            portfolio[
+                "position_open_timestamp"
+            ] = None
+
+            portfolio[
+                "weak_momentum_count"
+            ] = 0
+
+            portfolio[
+                "scale_in_count"
             ] = 0
 
             execution_status = (
@@ -252,6 +298,18 @@ def execute_paper_trade(
 
         portfolio[
             "highest_unrealized_pnl"
+        ] = 0
+
+        portfolio[
+            "position_open_timestamp"
+        ] = None
+
+        portfolio[
+            "weak_momentum_count"
+        ] = 0
+
+        portfolio[
+            "scale_in_count"
         ] = 0
 
     save_portfolio(

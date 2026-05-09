@@ -120,6 +120,37 @@ while True:
                 df_1h
             )
 
+            # =========================
+            # OVERBOUGHT ENTRY FILTER
+            # =========================
+
+            if (
+                market_context.get(
+                    "momentum_state"
+                ) == "overbought condition"
+                and trade_setup["setup_type"]
+                == "LONG_SETUP"
+            ):
+
+                trade_setup["confidence"] = max(
+                    0.50,
+                    trade_setup["confidence"] - 0.10
+                )
+
+                if (
+                    trade_setup["setup_quality"]
+                    == "strong"
+                ):
+
+                    trade_setup["setup_quality"] = (
+                        "moderate"
+                    )
+
+                trade_setup["reason"] += (
+                    " Late-entry overbought "
+                    "risk detected."
+                )
+
             print("\n=== TRADE SETUP ===")
 
             print(trade_setup)
@@ -153,6 +184,11 @@ while True:
 
             avg_entry_price = portfolio.get(
                 "avg_entry_price",
+                0
+            )
+
+            scale_in_count = portfolio.get(
+                "scale_in_count",
                 0
             )
 
@@ -201,14 +237,13 @@ while True:
             # DETERMINISTIC POSITION MANAGEMENT
             # =========================
 
-            position_exit_decision = (
-                evaluate_position_management(
-                    portfolio,
-                    unrealized_pnl
-                )
+            position_exit_decision = evaluate_position_management(
+                portfolio,
+                unrealized_pnl,
+                market_context,
+                trade_setup
             )
 
-            # Persist updated trailing-stop state
             if asset_holdings > 0:
 
                 save_portfolio(
@@ -231,10 +266,27 @@ while True:
                 execute_paper_trade(
                     decision=position_exit_decision,
                     asset_price=current_price,
-                    asset_symbol=asset_symbol
+                    asset_symbol=asset_symbol,
+                    unrealized_pnl=unrealized_pnl
                 )
 
-                # Deterministic exits bypass AI
+                continue
+
+            # =========================
+            # SHORT SETUP BLOCK
+            # =========================
+
+            if (
+                trade_setup["setup_type"]
+                == "SHORT_SETUP"
+                and asset_holdings <= 0
+            ):
+
+                print(
+                    "\nSHORT setup detected "
+                    "but short-selling is disabled."
+                )
+
                 continue
 
             # =========================
@@ -282,8 +334,26 @@ while True:
                 continue
 
             # =========================
+            # MARKET STATE EXTRACTION
+            # =========================
+
+            trend_state = market_context.get(
+                "trend_state"
+            )
+
+            momentum_state = market_context.get(
+                "momentum_state"
+            )
+
+            higher_tf_state = market_context.get(
+                "higher_timeframe_state"
+            )
+
+            # =========================
             # DETERMINISTIC ACTION VALIDATION
             # =========================
+
+            decision["invalid_semantic_action"] = False
 
             if (
                 asset_holdings <= 0
@@ -291,14 +361,19 @@ while True:
                 == "HOLD_POSITION"
             ):
 
+                decision["invalid_semantic_action"] = True
+
                 decision["action"] = (
                     "NO_ACTION"
                 )
 
-                decision["reason"] += (
-                    " HOLD_POSITION invalidated "
-                    "because no active "
-                    "position exists."
+                decision["confidence"] = min(
+                    decision["confidence"],
+                    0.70
+                )
+
+                decision["reason"] = (
+                    "No active position exists."
                 )
 
             if (
@@ -307,13 +382,155 @@ while True:
                 == "SELL"
             ):
 
+                decision["invalid_semantic_action"] = True
+
                 decision["action"] = (
                     "NO_ACTION"
                 )
 
+                decision["confidence"] = min(
+                    decision["confidence"],
+                    0.70
+                )
+
+                decision["reason"] = (
+                    "No holdings exist to sell."
+                )
+
+            # =========================
+            # HOLD POSITION OVERRIDE
+            # =========================
+
+            if (
+                asset_holdings > 0
+                and decision["action"]
+                == "HOLD_POSITION"
+                and trend_state == "bearish"
+                and momentum_state
+                == "weak bearish momentum"
+            ):
+
+                decision = {
+                    "action": "SELL",
+                    "confidence": 1.0,
+                    "reason":
+                        (
+                            "Deterministic override "
+                            "triggered due to bearish "
+                            "trend deterioration."
+                        )
+                }
+
+            # =========================
+            # HOLD CONFIDENCE NORMALIZATION
+            # =========================
+
+            if (
+                decision["action"]
+                == "HOLD_POSITION"
+            ):
+
+                decision["confidence"] = min(
+                    decision["confidence"],
+                    0.80
+                )
+
+            # =========================
+            # BEARISH BUY BLOCK
+            # =========================
+
+            if (
+                decision["action"] == "BUY"
+                and trend_state == "bearish"
+                and higher_tf_state
+                != "higher timeframe bullish"
+            ):
+
+                decision["action"] = (
+                    "NO_ACTION"
+                )
+
+                decision["reason"] = (
+                    "BUY blocked due to bearish "
+                    "higher timeframe structure."
+                )
+
+            # =========================
+            # MAX PYRAMIDING PROTECTION
+            # =========================
+
+            if (
+                decision["action"] == "BUY"
+                and asset_holdings > 0
+                and scale_in_count >= 3
+            ):
+
+                decision["action"] = (
+                    "NO_ACTION"
+                )
+
+                decision["reason"] = (
+                    "Scale-in blocked due to "
+                    "max pyramiding limit."
+                )
+
+            # =========================
+            # CONFIDENCE SANITY FILTER
+            # =========================
+
+            if (
+                trade_setup["setup_quality"]
+                == "moderate"
+                and decision["confidence"] > 0.90
+            ):
+
+                decision["confidence"] = 0.85
+
+            # =========================
+            # DETERMINISTIC CONFIDENCE FLOOR
+            # =========================
+
+            if (
+                trade_setup["confidence"] >= 0.75
+                and decision["action"] == "BUY"
+                and decision["confidence"]
+                < trade_setup["confidence"]
+            ):
+
+                decision["confidence"] = (
+                    trade_setup["confidence"]
+                )
+
                 decision["reason"] += (
-                    " SELL invalidated because "
-                    "no holdings exist."
+                    " Confidence aligned to "
+                    "deterministic setup score."
+                )
+
+            # =========================
+            # DETERMINISTIC SETUP OVERRIDE
+            # =========================
+
+            if (
+                trade_setup["setup_type"] != "NO_SETUP"
+                and trade_setup["setup_type"] != "SHORT_SETUP"
+                and trade_setup["confidence"] >= 0.75
+                and decision["action"] == "NO_ACTION"
+                and not decision.get(
+                    "invalid_semantic_action",
+                    False
+                )
+            ):
+
+                decision["action"] = "BUY"
+
+                decision["confidence"] = max(
+                    decision["confidence"],
+                    trade_setup["confidence"]
+                )
+
+                decision["reason"] = (
+                    "Deterministic setup confidence "
+                    "override triggered."
                 )
 
             print("\n=== AI DECISION ===")
@@ -327,7 +544,8 @@ while True:
             execute_paper_trade(
                 decision=decision,
                 asset_price=current_price,
-                asset_symbol=asset_symbol
+                asset_symbol=asset_symbol,
+                unrealized_pnl=unrealized_pnl
             )
 
         except Exception as e:
