@@ -3,54 +3,136 @@ def detect_trade_setup(
     df_1h
 ):
 
-    # The latest 5-minute candle drives the immediate entry setup.
+    # =========================
+    # LATEST MARKET DATA
+    # =========================
+
     latest = df_5m.iloc[-1]
 
+    higher_tf_latest = df_1h.iloc[-1]
+
+    # =========================
+    # TREND CONDITIONS
+    # =========================
+
     trend_bullish = (
-        latest['close'] > latest['ema_20']
+        latest['close']
+        > latest['ema_20']
     )
 
     higher_tf_bullish = (
-        df_1h.iloc[-1]['close']
-        > df_1h.iloc[-1]['ema_20']
+        higher_tf_latest['close']
+        > higher_tf_latest['ema_20']
     )
+
+    trend_bearish = (
+        latest['close']
+        < latest['ema_20']
+    )
+
+    higher_tf_bearish = (
+        higher_tf_latest['close']
+        < higher_tf_latest['ema_20']
+    )
+
+    # =========================
+    # MOMENTUM CONDITIONS
+    # =========================
 
     macd_bullish = (
         latest['macd']
         > latest['macd_signal']
     )
 
+    macd_bearish = (
+        latest['macd']
+        < latest['macd_signal']
+    )
+
     rsi = latest['rsi']
 
+    volume_ratio = latest.get(
+        'volume_ratio',
+        1
+    )
+
+    strong_volume = (
+        volume_ratio >= 1.2
+    )
+
     # =========================
-    # LONG SETUP
+    # LONG SETUP — STRONG
     # =========================
 
     if (
         trend_bullish
         and higher_tf_bullish
-        and 50 <= rsi <= 75
+        and macd_bullish
+        and 55 <= rsi <= 70
     ):
 
-        setup_quality = "strong"
+        confidence = 0.85
 
-        reason = (
-            "Bullish trend aligned with higher timeframe confirmation."
+        if strong_volume:
+
+            confidence += 0.05
+
+        confidence = min(
+            confidence,
+            0.95
         )
-
-        # Momentum confirmation improves setup quality
-        if not macd_bullish:
-
-            setup_quality = "moderate"
-
-            reason = (
-                "Bullish trend present but momentum confirmation is weaker."
-            )
 
         return {
             "setup_type": "LONG_SETUP",
-            "setup_quality": setup_quality,
-            "reason": reason
+            "setup_quality": "strong",
+            "confidence": round(
+                confidence,
+                2
+            ),
+            "reason":
+                (
+                    "Bullish trend aligned across "
+                    "higher timeframe and momentum."
+                )
+        }
+
+    # =========================
+    # LONG SETUP — MODERATE
+    # =========================
+
+    elif (
+        trend_bullish
+        and higher_tf_bullish
+        and 50 <= rsi <= 75
+    ):
+
+        confidence = 0.70
+
+        if macd_bullish:
+
+            confidence += 0.05
+
+        if strong_volume:
+
+            confidence += 0.05
+
+        confidence = min(
+            confidence,
+            0.85
+        )
+
+        return {
+            "setup_type": "LONG_SETUP",
+            "setup_quality": "moderate",
+            "confidence": round(
+                confidence,
+                2
+            ),
+            "reason":
+                (
+                    "Bullish trend present but "
+                    "momentum confirmation is weaker."
+                )
         }
 
     # =========================
@@ -58,37 +140,110 @@ def detect_trade_setup(
     # =========================
 
     elif (
-        not trend_bullish
-        and not higher_tf_bullish
+        trend_bearish
+        and higher_tf_bearish
         and macd_bullish
         and rsi < 35
     ):
 
-        # Aggressive long: bearish trend, but momentum may be reversing.
+        confidence = 0.65
+
+        if strong_volume:
+
+            confidence += 0.05
+
+        confidence = min(
+            confidence,
+            0.75
+        )
+
         return {
             "setup_type": "REVERSAL_SETUP",
             "setup_quality": "aggressive",
+            "confidence": round(
+                confidence,
+                2
+            ),
             "reason":
-                "Possible bullish reversal from oversold conditions."
+                (
+                    "Possible bullish reversal "
+                    "from oversold conditions."
+                )
         }
 
     # =========================
-    # SHORT SETUP
+    # SHORT SETUP — STRONG
     # =========================
 
     elif (
-        not trend_bullish
-        and not higher_tf_bullish
-        and not macd_bullish
+        trend_bearish
+        and higher_tf_bearish
+        and macd_bearish
         and rsi < 45
     ):
 
-        # Downtrend continuation: bearish trend and momentum align.
+        confidence = 0.85
+
+        if strong_volume:
+
+            confidence += 0.05
+
+        confidence = min(
+            confidence,
+            0.95
+        )
+
+        return {
+            "setup_type": "SHORT_SETUP",
+            "setup_quality": "strong",
+            "confidence": round(
+                confidence,
+                2
+            ),
+            "reason":
+                (
+                    "Bearish trend aligned across "
+                    "higher timeframe and momentum."
+                )
+        }
+
+    # =========================
+    # SHORT SETUP — MODERATE
+    # =========================
+
+    elif (
+        trend_bearish
+        and higher_tf_bearish
+        and rsi < 50
+    ):
+
+        confidence = 0.70
+
+        if macd_bearish:
+
+            confidence += 0.05
+
+        if strong_volume:
+
+            confidence += 0.05
+
+        confidence = min(
+            confidence,
+            0.85
+        )
+
         return {
             "setup_type": "SHORT_SETUP",
             "setup_quality": "moderate",
+            "confidence": round(
+                confidence,
+                2
+            ),
             "reason":
-                "Bearish trend with negative momentum confirmation."
+                (
+                    "Bearish trend present but "
+                    "momentum confirmation is weaker."
+                )
         }
 
     # =========================
@@ -100,6 +255,10 @@ def detect_trade_setup(
         return {
             "setup_type": "NO_SETUP",
             "setup_quality": "none",
+            "confidence": 0.50,
             "reason":
-                "No strong trade structure detected."
+                (
+                    "No strong trade structure "
+                    "detected."
+                )
         }

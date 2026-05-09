@@ -5,6 +5,7 @@ TRADE_LOG_FILE = (
     "app/runtime_data/trade_history.csv"
 )
 
+
 def log_trade(
     asset_symbol,
     status,
@@ -12,10 +13,10 @@ def log_trade(
     confidence,
     asset_price,
     portfolio_value,
+    investment_amount,
     reason
 ):
 
-    # Append one row per AI decision, including skipped trade reasons.
     with open(
         TRADE_LOG_FILE,
         mode='a',
@@ -33,6 +34,7 @@ def log_trade(
             confidence,
             asset_price,
             portfolio_value,
+            investment_amount,
             reason
         ])
 

@@ -18,10 +18,7 @@ from strategies.trade_setup_engine import (
 )
 
 from strategies.market_state_engine import (
-    generate_market_state
-)
-
-from strategies.market_state_engine import (
+    generate_market_state,
     generate_structured_market_state
 )
 
@@ -38,10 +35,7 @@ from paper_trading.paper_trader import (
 )
 
 from paper_trading.portfolio_manager import (
-    load_portfolio
-)
-
-from paper_trading.portfolio_manager import (
+    load_portfolio,
     save_portfolio
 )
 
@@ -57,7 +51,6 @@ ASSETS = [
 
 while True:
 
-    # One full cycle: scan every isolated asset portfolio.
     print("\n========================")
     print("NEW TRADING CYCLE")
     print("========================")
@@ -66,7 +59,9 @@ while True:
 
         try:
 
-            asset_name = asset_symbol.split("/")[0]
+            asset_name = (
+                asset_symbol.split("/")[0]
+            )
 
             print("\n------------------------")
             print(f"ASSET: {asset_symbol}")
@@ -95,22 +90,30 @@ while True:
             df_1h = add_indicators(df_1h)
 
             # =========================
-            # GENERATE SUMMARY
+            # MARKET STATE
             # =========================
 
-            market_summary = generate_market_state(
-                df_5m,
-                df_1h
+            market_summary = (
+                generate_market_state(
+                    df_5m,
+                    df_1h
+                )
             )
 
-            market_context = generate_structured_market_state(
-                df_5m,
-                df_1h
+            market_context = (
+                generate_structured_market_state(
+                    df_5m,
+                    df_1h
+                )
             )
 
             print("\n=== MARKET STATE ===")
 
             print(market_summary)
+
+            # =========================
+            # TRADE SETUP
+            # =========================
 
             trade_setup = detect_trade_setup(
                 df_5m,
@@ -121,18 +124,28 @@ while True:
 
             print(trade_setup)
 
+            # =========================
+            # LOG MARKET CYCLE
+            # =========================
+
+            current_price = (
+                df_5m.iloc[-1]['close']
+            )
+
             log_market_cycle(
                 asset_symbol=asset_symbol,
                 market_summary=market_summary,
                 trade_setup=trade_setup,
-                asset_price=df_5m.iloc[-1]['close']
+                asset_price=current_price
             )
 
             # =========================
-            # LOAD PORTFOLIO STATE
+            # LOAD PORTFOLIO
             # =========================
 
-            portfolio = load_portfolio(asset_symbol)
+            portfolio = load_portfolio(
+                asset_symbol
+            )
 
             asset_holdings = portfolio[
                 "asset_holdings"
@@ -143,20 +156,17 @@ while True:
                 0
             )
 
-            current_price = (
-                df_5m.iloc[-1]['close']
-            )
-
             # =========================
             # UNREALIZED PNL
             # =========================
+
+            unrealized_pnl = 0
 
             if (
                 asset_holdings > 0
                 and avg_entry_price > 0
             ):
 
-                # Percent gain/loss on the open asset position.
                 unrealized_pnl = (
                     (
                         current_price
@@ -165,20 +175,21 @@ while True:
                     / avg_entry_price
                 ) * 100
 
-            else:
-
-                unrealized_pnl = 0
-
             print("\n=== POSITION STATUS ===")
 
             print(
                 f"{asset_name} Holdings: "
-                f"{asset_holdings}"
+                f"{asset_holdings:.6f}"
             )
 
             print(
                 f"Average Entry Price: "
-                f"{avg_entry_price}"
+                f"{avg_entry_price:.2f}"
+            )
+
+            print(
+                f"Current Price: "
+                f"{current_price:.2f}"
             )
 
             print(
@@ -187,14 +198,17 @@ while True:
             )
 
             # =========================
-            # POSITION MANAGEMENT
+            # DETERMINISTIC POSITION MANAGEMENT
             # =========================
 
-            position_exit_decision = evaluate_position_management(
-                portfolio,
-                unrealized_pnl
+            position_exit_decision = (
+                evaluate_position_management(
+                    portfolio,
+                    unrealized_pnl
+                )
             )
 
+            # Persist updated trailing-stop state
             if asset_holdings > 0:
 
                 save_portfolio(
@@ -202,9 +216,15 @@ while True:
                     asset_symbol
                 )
 
+            # =========================
+            # FORCED EXIT OVERRIDE
+            # =========================
+
             if position_exit_decision:
 
-                print("\n=== POSITION MANAGEMENT EXIT ===")
+                print(
+                    "\n=== POSITION MANAGEMENT EXIT ==="
+                )
 
                 print(position_exit_decision)
 
@@ -214,19 +234,22 @@ while True:
                     asset_symbol=asset_symbol
                 )
 
+                # Deterministic exits bypass AI
                 continue
 
             # =========================
-            # NO SETUP FILTER
+            # NO SETUP + NO POSITION
             # =========================
 
             if (
-                trade_setup["setup_type"] == "NO_SETUP"
-                and asset_holdings == 0
+                trade_setup["setup_type"]
+                == "NO_SETUP"
+                and asset_holdings <= 0
             ):
 
-                # Skip the LLM only when there is no setup and no open position.
-                print("\nNo valid trade setup detected.")
+                print(
+                    "\nNo valid trade setup detected."
+                )
 
                 continue
 
@@ -242,8 +265,56 @@ while True:
                 unrealized_pnl
             )
 
-            # Ollama is instructed to return JSON only.
-            decision = json.loads(ai_response)
+            try:
+
+                decision = json.loads(
+                    ai_response
+                )
+
+            except json.JSONDecodeError:
+
+                print(
+                    "\nInvalid AI JSON response."
+                )
+
+                print(ai_response)
+
+                continue
+
+            # =========================
+            # DETERMINISTIC ACTION VALIDATION
+            # =========================
+
+            if (
+                asset_holdings <= 0
+                and decision["action"]
+                == "HOLD_POSITION"
+            ):
+
+                decision["action"] = (
+                    "NO_ACTION"
+                )
+
+                decision["reason"] += (
+                    " HOLD_POSITION invalidated "
+                    "because no active "
+                    "position exists."
+                )
+
+            if (
+                asset_holdings <= 0
+                and decision["action"]
+                == "SELL"
+            ):
+
+                decision["action"] = (
+                    "NO_ACTION"
+                )
+
+                decision["reason"] += (
+                    " SELL invalidated because "
+                    "no holdings exist."
+                )
 
             print("\n=== AI DECISION ===")
 
@@ -261,7 +332,10 @@ while True:
 
         except Exception as e:
 
-            print(f"\nERROR OCCURRED FOR {asset_symbol}:")
+            print(
+                f"\nERROR OCCURRED "
+                f"FOR {asset_symbol}:"
+            )
 
             print(e)
 

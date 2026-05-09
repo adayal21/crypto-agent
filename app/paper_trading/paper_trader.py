@@ -1,4 +1,5 @@
 from paper_trading.trade_logger import log_trade
+
 from paper_trading.portfolio_manager import (
     load_portfolio,
     save_portfolio
@@ -11,12 +12,17 @@ def execute_paper_trade(
     asset_symbol
 ):
 
-    # Load the latest simulated account before applying the AI decision.
-    portfolio = load_portfolio(asset_symbol)
+    portfolio = load_portfolio(
+        asset_symbol
+    )
 
-    cash_balance = portfolio["cash_balance"]
+    cash_balance = portfolio[
+        "cash_balance"
+    ]
 
-    asset_holdings = portfolio["asset_holdings"]
+    asset_holdings = portfolio[
+        "asset_holdings"
+    ]
 
     avg_entry_price = portfolio.get(
         "avg_entry_price",
@@ -27,8 +33,11 @@ def execute_paper_trade(
 
     confidence = decision["confidence"]
 
-    # Stored in CSV so skipped decisions are separated from real trades.
-    execution_status = "SKIPPED_NO_ACTION"
+    execution_status = (
+        "SKIPPED_NO_ACTION"
+    )
+
+    investment_amount = 0
 
     print("\n=== PAPER TRADING ===")
 
@@ -36,111 +45,236 @@ def execute_paper_trade(
     # CONFIDENCE FILTER
     # =========================
 
-    if confidence < 0.75:
+    if confidence < 0.65:
 
-        execution_status = "SKIPPED_LOW_CONFIDENCE"
+        execution_status = (
+            "SKIPPED_LOW_CONFIDENCE"
+        )
 
         print("\nConfidence too low.")
         print("NO TRADE EXECUTED")
 
+    # =========================
+    # BUY
+    # =========================
+
     elif action == "BUY":
+
+        # =========================
+        # SCALE-IN
+        # =========================
 
         if asset_holdings > 0:
 
-            execution_status = "SKIPPED_ALREADY_HOLDING"
+            if confidence >= 0.90:
 
-            print(f"\nAlready holding {asset_symbol}.")
-            print("Skipping additional BUY.")
-
-        else:
-
-            # Fixed sizing keeps the paper trader simple and predictable.
-            investment_amount = 1000
-
-            if cash_balance >= investment_amount:
-
-                asset_bought = (
-                    investment_amount / asset_price
+                investment_amount = (
+                    cash_balance * 0.05
                 )
 
-                cash_balance -= investment_amount
+                if investment_amount > 0:
 
-                asset_holdings += asset_bought
+                    additional_asset = (
+                        investment_amount
+                        / asset_price
+                    )
 
-                avg_entry_price = asset_price
+                    existing_position_value = (
+                        asset_holdings
+                        * avg_entry_price
+                    )
 
-                portfolio["highest_unrealized_pnl"] = 0
+                    total_position_value = (
+                        existing_position_value
+                        + investment_amount
+                    )
 
-                execution_status = "EXECUTED_BUY"
+                    asset_holdings += (
+                        additional_asset
+                    )
 
-                print("\nBUY EXECUTED")
+                    avg_entry_price = (
+                        total_position_value
+                        / asset_holdings
+                    )
+
+                    cash_balance -= (
+                        investment_amount
+                    )
+
+                    execution_status = (
+                        "EXECUTED_SCALE_IN"
+                    )
+
+                    print(
+                        "\nSCALE-IN BUY EXECUTED"
+                    )
 
             else:
 
-                execution_status = "SKIPPED_INSUFFICIENT_CASH"
+                execution_status = (
+                    "SKIPPED_ALREADY_HOLDING"
+                )
 
-                print("\nNot enough cash.")
+                print(
+                    f"\nAlready holding "
+                    f"{asset_symbol}."
+                )
+
+        # =========================
+        # NEW POSITION
+        # =========================
+
+        else:
+
+            investment_amount = (
+                cash_balance * 0.10
+            )
+
+            if investment_amount > 0:
+
+                asset_bought = (
+                    investment_amount
+                    / asset_price
+                )
+
+                cash_balance -= (
+                    investment_amount
+                )
+
+                asset_holdings += (
+                    asset_bought
+                )
+
+                avg_entry_price = (
+                    asset_price
+                )
+
+                portfolio[
+                    "highest_unrealized_pnl"
+                ] = 0
+
+                execution_status = (
+                    "EXECUTED_BUY"
+                )
+
+                print("\nBUY EXECUTED")
+
+    # =========================
+    # SELL
+    # =========================
 
     elif action == "SELL":
 
         if asset_holdings > 0:
 
+            position_value = (
+                asset_holdings
+                * asset_price
+            )
+
+            investment_amount = (
+                position_value
+            )
+
             cash_balance += (
-                asset_holdings * asset_price
+                position_value
             )
 
             asset_holdings = 0
+
             avg_entry_price = 0
 
-            portfolio["highest_unrealized_pnl"] = 0
+            portfolio[
+                "highest_unrealized_pnl"
+            ] = 0
 
-            execution_status = "EXECUTED_SELL"
+            execution_status = (
+                "EXECUTED_SELL"
+            )
 
             print("\nSELL EXECUTED")
 
         else:
 
-            execution_status = "SKIPPED_NO_HOLDINGS"
+            execution_status = (
+                "SKIPPED_NO_HOLDINGS"
+            )
 
-            print(f"\nNo {asset_symbol} holdings to sell.")
+            print(
+                f"\nNo {asset_symbol} "
+                f"holdings to sell."
+            )
+
+    # =========================
+    # HOLD POSITION
+    # =========================
 
     elif action == "HOLD_POSITION":
 
-        print("\nHolding existing position.")
+        execution_status = (
+            "HOLDING_POSITION"
+        )
+
+        print(
+            "\nHolding existing position."
+        )
+
+    # =========================
+    # NO ACTION
+    # =========================
 
     else:
+
+        execution_status = (
+            "NO_ACTION"
+        )
 
         print("\nNO ACTION")
 
     # =========================
-    # SAVE UPDATED PORTFOLIO
+    # SAVE PORTFOLIO
     # =========================
 
-    portfolio["cash_balance"] = cash_balance
+    portfolio["cash_balance"] = (
+        cash_balance
+    )
 
-    portfolio["asset_holdings"] = asset_holdings
+    portfolio["asset_holdings"] = (
+        asset_holdings
+    )
 
-    portfolio["avg_entry_price"] = avg_entry_price
+    portfolio["avg_entry_price"] = (
+        avg_entry_price
+    )
 
     if asset_holdings <= 0:
 
-        portfolio["highest_unrealized_pnl"] = 0
-    
+        portfolio[
+            "highest_unrealized_pnl"
+        ] = 0
+
     save_portfolio(
         portfolio,
         asset_symbol
     )
 
     # =========================
-    # PORTFOLIO STATUS
+    # PORTFOLIO VALUE
     # =========================
 
     portfolio_value = (
         cash_balance
-        + (asset_holdings * asset_price)
+        + (
+            asset_holdings
+            * asset_price
+        )
     )
 
-    # Log both the requested action and what actually happened.
+    # =========================
+    # TRADE LOGGING
+    # =========================
+
     log_trade(
         asset_symbol=asset_symbol,
         status=execution_status,
@@ -148,13 +282,23 @@ def execute_paper_trade(
         confidence=confidence,
         asset_price=asset_price,
         portfolio_value=portfolio_value,
+        investment_amount=investment_amount,
         reason=decision["reason"]
     )
-    
+
     print("\n=== PORTFOLIO STATUS ===")
 
-    print(f"Cash Balance: ${cash_balance:.2f}")
+    print(
+        f"Cash Balance: "
+        f"${cash_balance:.2f}"
+    )
 
-    print(f"{asset_symbol} Holdings: {asset_holdings:.6f}")
+    print(
+        f"{asset_symbol} Holdings: "
+        f"{asset_holdings:.6f}"
+    )
 
-    print(f"Portfolio Value: ${portfolio_value:.2f}")
+    print(
+        f"Portfolio Value: "
+        f"${portfolio_value:.2f}"
+    )

@@ -1,17 +1,24 @@
 import json
+
 from pathlib import Path
+
+import pandas as pd
+
 from config.settings import (
     RUNTIME_DATA_DIR
 )
-import pandas as pd
+
+# =========================
+# FILE PATHS
+# =========================
 
 TRADE_HISTORY_FILE = (
     RUNTIME_DATA_DIR
     / "trade_history.csv"
 )
-INVESTMENT_AMOUNT = 1000
 
 PORTFOLIO_FILES = {
+
     "BTC/USDT":
         RUNTIME_DATA_DIR
         / "btc_portfolio.json",
@@ -25,6 +32,10 @@ PORTFOLIO_FILES = {
         / "sol_portfolio.json"
 }
 
+# =========================
+# TRADE COLUMNS
+# =========================
+
 TRADE_COLUMNS = [
     "timestamp",
     "asset_symbol",
@@ -33,18 +44,28 @@ TRADE_COLUMNS = [
     "confidence",
     "asset_price",
     "portfolio_value",
+    "investment_amount",
     "reason"
 ]
+
+# =========================
+# LOAD TRADES
+# =========================
 
 
 def load_trades():
 
     if not TRADE_HISTORY_FILE.exists():
 
-        return pd.DataFrame(columns=TRADE_COLUMNS)
+        return pd.DataFrame(
+            columns=TRADE_COLUMNS
+        )
 
-    trades = pd.read_csv(TRADE_HISTORY_FILE)
+    trades = pd.read_csv(
+        TRADE_HISTORY_FILE
+    )
 
+    # Ensure backward compatibility
     for column in TRADE_COLUMNS:
 
         if column not in trades.columns:
@@ -52,6 +73,10 @@ def load_trades():
             trades[column] = None
 
     trades = trades[TRADE_COLUMNS]
+
+    # =========================
+    # TYPE CONVERSIONS
+    # =========================
 
     trades["timestamp"] = pd.to_datetime(
         trades["timestamp"],
@@ -73,20 +98,35 @@ def load_trades():
         errors="coerce"
     )
 
+    trades["investment_amount"] = pd.to_numeric(
+        trades["investment_amount"],
+        errors="coerce"
+    )
+
     return trades.dropna(
         subset=["timestamp"]
     )
+
+# =========================
+# LOAD PORTFOLIOS
+# =========================
 
 
 def load_portfolios(trades):
 
     rows = []
 
-    for asset_symbol, file_path in PORTFOLIO_FILES.items():
+    for (
+        asset_symbol,
+        file_path
+    ) in PORTFOLIO_FILES.items():
 
         if file_path.exists():
 
-            with open(file_path, "r") as file:
+            with open(
+                file_path,
+                "r"
+            ) as file:
 
                 portfolio = json.load(file)
 
@@ -102,7 +142,10 @@ def load_portfolios(trades):
         latest_price = get_latest_price(
             trades,
             asset_symbol,
-            portfolio.get("avg_entry_price", 0)
+            portfolio.get(
+                "avg_entry_price",
+                0
+            )
         )
 
         asset_holdings = portfolio.get(
@@ -126,20 +169,43 @@ def load_portfolios(trades):
         )
 
         rows.append({
-            "asset_symbol": asset_symbol,
-            "cash_balance": cash_balance,
-            "asset_holdings": asset_holdings,
-            "avg_entry_price": portfolio.get("avg_entry_price", 0),
-            "latest_price": latest_price,
-            "position_value": position_value,
-            "portfolio_value": portfolio_value,
-            "highest_unrealized_pnl": portfolio.get(
-                "highest_unrealized_pnl",
-                0
-            )
+
+            "asset_symbol":
+                asset_symbol,
+
+            "cash_balance":
+                cash_balance,
+
+            "asset_holdings":
+                asset_holdings,
+
+            "avg_entry_price":
+                portfolio.get(
+                    "avg_entry_price",
+                    0
+                ),
+
+            "latest_price":
+                latest_price,
+
+            "position_value":
+                position_value,
+
+            "portfolio_value":
+                portfolio_value,
+
+            "highest_unrealized_pnl":
+                portfolio.get(
+                    "highest_unrealized_pnl",
+                    0
+                )
         })
 
     return pd.DataFrame(rows)
+
+# =========================
+# GET LATEST PRICE
+# =========================
 
 
 def get_latest_price(
@@ -149,12 +215,17 @@ def get_latest_price(
 ):
 
     asset_trades = trades[
-        trades["asset_symbol"] == asset_symbol
+        trades["asset_symbol"]
+        == asset_symbol
     ]
 
     if not asset_trades.empty:
 
-        latest_price = asset_trades.iloc[-1]["asset_price"]
+        latest_price = (
+            asset_trades.iloc[-1][
+                "asset_price"
+            ]
+        )
 
         if pd.notna(latest_price):
 
@@ -162,36 +233,69 @@ def get_latest_price(
 
     return fallback_price or 0
 
+# =========================
+# BUILD CLOSED TRADES
+# =========================
+
 
 def build_closed_trades(trades):
 
     executed = trades[
         trades["status"].isin([
             "EXECUTED_BUY",
-            "EXECUTED_SELL"
+            "EXECUTED_SELL",
+            "EXECUTED_SCALE_IN"
         ])
     ].sort_values("timestamp")
 
     open_positions = {}
+
     closed_trades = []
 
     for _, trade in executed.iterrows():
 
-        asset_symbol = trade["asset_symbol"]
+        asset_symbol = trade[
+            "asset_symbol"
+        ]
+
         action = trade["action"]
+
+        # =========================
+        # OPEN POSITION
+        # =========================
 
         if action == "BUY":
 
-            open_positions[asset_symbol] = trade
+            open_positions[
+                asset_symbol
+            ] = trade
+
+        # =========================
+        # CLOSE POSITION
+        # =========================
 
         elif (
             action == "SELL"
-            and asset_symbol in open_positions
+            and asset_symbol
+            in open_positions
         ):
 
-            entry = open_positions.pop(asset_symbol)
-            entry_price = entry["asset_price"]
-            exit_price = trade["asset_price"]
+            entry = open_positions.pop(
+                asset_symbol
+            )
+
+            entry_price = entry[
+                "asset_price"
+            ]
+
+            exit_price = trade[
+                "asset_price"
+            ]
+
+            investment_amount = entry.get(
+                "investment_amount",
+                0
+            )
 
             if (
                 pd.isna(entry_price)
@@ -210,7 +314,7 @@ def build_closed_trades(trades):
             ) * 100
 
             pnl_amount = (
-                INVESTMENT_AMOUNT
+                investment_amount
                 * pnl_pct
                 / 100
             )
@@ -221,18 +325,46 @@ def build_closed_trades(trades):
             )
 
             closed_trades.append({
-                "asset_symbol": asset_symbol,
-                "entry_time": entry["timestamp"],
-                "exit_time": trade["timestamp"],
-                "entry_price": entry_price,
-                "exit_price": exit_price,
-                "pnl_pct": pnl_pct,
-                "pnl_amount": pnl_amount,
-                "hold_hours": hold_time.total_seconds() / 3600,
-                "exit_reason": trade["reason"]
+
+                "asset_symbol":
+                    asset_symbol,
+
+                "entry_time":
+                    entry["timestamp"],
+
+                "exit_time":
+                    trade["timestamp"],
+
+                "entry_price":
+                    entry_price,
+
+                "exit_price":
+                    exit_price,
+
+                "investment_amount":
+                    investment_amount,
+
+                "pnl_pct":
+                    pnl_pct,
+
+                "pnl_amount":
+                    pnl_amount,
+
+                "hold_hours":
+                    (
+                        hold_time.total_seconds()
+                        / 3600
+                    ),
+
+                "exit_reason":
+                    trade["reason"]
             })
 
     return pd.DataFrame(closed_trades)
+
+# =========================
+# MAX DRAWDOWN
+# =========================
 
 
 def calculate_max_drawdown(trades):
@@ -257,6 +389,10 @@ def calculate_max_drawdown(trades):
 
     return drawdowns.min()
 
+# =========================
+# SUMMARY METRICS
+# =========================
+
 
 def calculate_summary_metrics(
     trades,
@@ -264,11 +400,15 @@ def calculate_summary_metrics(
 ):
 
     executed_trades = trades[
-        trades["status"].astype(str).str.startswith("EXECUTED")
+        trades["status"]
+        .astype(str)
+        .str.startswith("EXECUTED")
     ]
 
     skipped_trades = trades[
-        trades["status"].astype(str).str.startswith("SKIPPED")
+        trades["status"]
+        .astype(str)
+        .str.startswith("SKIPPED")
     ]
 
     if closed_trades.empty:
@@ -281,11 +421,15 @@ def calculate_summary_metrics(
     else:
 
         wins = closed_trades[
-            closed_trades["pnl_amount"] > 0
+            closed_trades[
+                "pnl_amount"
+            ] > 0
         ]
 
         losses = closed_trades[
-            closed_trades["pnl_amount"] <= 0
+            closed_trades[
+                "pnl_amount"
+            ] <= 0
         ]
 
         win_rate = (
@@ -306,7 +450,9 @@ def calculate_summary_metrics(
         ].sum()
 
         gross_loss = abs(
-            losses["pnl_amount"].sum()
+            losses[
+                "pnl_amount"
+            ].sum()
         )
 
         profit_factor = (
@@ -316,16 +462,40 @@ def calculate_summary_metrics(
         )
 
     return {
-        "total_decisions": len(trades),
-        "executed_trades": len(executed_trades),
-        "skipped_trades": len(skipped_trades),
-        "closed_trades": len(closed_trades),
-        "win_rate": win_rate,
-        "avg_pnl": avg_pnl,
-        "avg_hold_hours": avg_hold_hours,
-        "max_drawdown": calculate_max_drawdown(trades),
-        "profit_factor": profit_factor
+
+        "total_decisions":
+            len(trades),
+
+        "executed_trades":
+            len(executed_trades),
+
+        "skipped_trades":
+            len(skipped_trades),
+
+        "closed_trades":
+            len(closed_trades),
+
+        "win_rate":
+            win_rate,
+
+        "avg_pnl":
+            avg_pnl,
+
+        "avg_hold_hours":
+            avg_hold_hours,
+
+        "max_drawdown":
+            calculate_max_drawdown(
+                trades
+            ),
+
+        "profit_factor":
+            profit_factor
     }
+
+# =========================
+# EQUITY CURVE
+# =========================
 
 
 def build_equity_curve(trades):
@@ -348,4 +518,6 @@ def build_equity_curve(trades):
         ]
     ].dropna()
 
-    return equity.sort_values("timestamp")
+    return equity.sort_values(
+        "timestamp"
+    )

@@ -11,7 +11,14 @@ def get_ai_decision(
     unrealized_pnl
 ):
 
-    asset_name = asset_symbol.split("/")[0]
+    asset_name = (
+        asset_symbol.split("/")[0]
+    )
+
+    setup_confidence = trade_setup.get(
+        "confidence",
+        0.50
+    )
 
     market_state_payload = json.dumps(
         market_state,
@@ -23,7 +30,47 @@ def get_ai_decision(
         indent=2
     )
 
-    # The LLM validates an existing setup; it does not create new signals.
+    holding_position = (
+        asset_holdings > 0
+    )
+
+    # =========================
+    # POSITION CONTEXT
+    # =========================
+
+    if holding_position:
+
+        position_context = f"""
+Current Position State:
+- Currently holding {asset_name}
+- Existing position should be actively managed
+- HOLD_POSITION is allowed
+- BUY is allowed only for exceptionally strong continuation setups where scaling into the position is justified
+- SELL is allowed if:
+    - reversal risk increases
+    - momentum weakens significantly
+    - trend structure deteriorates
+    - continuation quality weakens
+- Avoid emotional exits during healthy trends
+- Evaluate continuation quality carefully
+- HOLD_POSITION is preferred during healthy trends
+"""
+
+    else:
+
+        position_context = f"""
+Current Position State:
+- No current {asset_name} position
+- BUY is allowed if setup quality is reasonable
+- HOLD_POSITION is invalid when no position exists
+- SELL is invalid when no position exists
+- NO_ACTION means remain out of the market
+"""
+
+    # =========================
+    # PROMPT
+    # =========================
+
     prompt = f"""
 You are an AI trading evaluator.
 
@@ -32,7 +79,7 @@ A deterministic trading setup has already been detected.
 Your job is:
 - evaluate setup quality
 - evaluate risk/reward
-- decide whether trade execution is justified
+- validate trade execution decisions
 - manage existing positions intelligently
 
 You are NOT discovering setups.
@@ -50,7 +97,7 @@ Rules:
 Definitions:
 
 BUY:
-Open a new position.
+Open a new position or scale into an existing strong position.
 
 SELL:
 Exit an existing position.
@@ -61,33 +108,42 @@ Continue holding an existing open position.
 NO_ACTION:
 Remain out of the market with no position.
 
-- Be decisive.
-- Moderate-risk setups are acceptable.
-- Do not reject trades simply because uncertainty exists.
-- If setup quality and trend alignment are reasonable,
-  execution is allowed.
+Behavior Rules:
+- Be decisive
+- Moderate-risk setups are acceptable
+- Do not reject trades simply because uncertainty exists
+- If trend alignment and setup quality are reasonable,
+  execution is allowed
+- Strong higher timeframe alignment increases confidence
+- Weak momentum or conflicting structure lowers confidence
 
-- If currently holding {asset_name}:
-    - consider trend continuation
-    - consider unrealized profit/loss
-    - avoid unnecessary exits during healthy trends
-    - avoid emotional reactions to short-term noise
+IMPORTANT:
+- Hard stop-loss, take-profit, and trailing-stop
+  systems already exist separately
+- Do NOT force panic exits for small losses
+- Focus primarily on continuation quality,
+  trend health, and structural deterioration
 
-- If currently holding {asset_name} and no new setup exists:
-    - evaluate whether the current position should still be held
-    - consider trend continuation
-    - consider unrealized profit/loss
-    - SELL is allowed if reversal risk becomes significant
-    - NO_ACTION means continue holding the existing position
+Deterministic Setup Confidence:
+{setup_confidence}
 
-- If not holding {asset_name}:
-    - BUY is allowed if setup quality is reasonable
-    - NO_ACTION means stay out of the market
+IMPORTANT:
+- The setup engine has already calculated
+  a deterministic confidence score
+- Use this confidence as the base confidence
+- Only adjust confidence slightly if market structure
+  strongly supports or conflicts with the setup
+- Do NOT invent arbitrary confidence values
 
-- Use NO_ACTION only if:
-    - setup quality is weak
-    - market structure is conflicting
-    - risk/reward is poor
+Confidence Rules:
+- 0.50 → weak setup
+- 0.60 → uncertain/conflicting structure
+- 0.70 → acceptable setup
+- 0.85 → strong setup with alignment
+- 0.95 → exceptional alignment across trend,
+  momentum, and higher timeframe
+
+{position_context}
 
 Format:
 
@@ -99,7 +155,10 @@ Format:
 
 Current Position Information:
 
-{asset_name} Holdings:
+Asset:
+{asset_name}
+
+Holdings:
 {asset_holdings}
 
 Unrealized PnL:
