@@ -59,7 +59,11 @@ try:
         "-m",
         "streamlit",
         "run",
-        "app/dashboard/dashboard.py"
+        "app/dashboard/dashboard.py",
+
+        "--server.address=0.0.0.0",
+
+        "--server.port=8501"
 
     ])
 
