@@ -7,7 +7,7 @@ import pandas as pd
 
 DATA_DIR = "data"
 
-exchange = ccxt.bybit()
+exchange = ccxt.binance()
 
 
 def get_cache_path(

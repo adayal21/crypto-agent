@@ -1,7 +1,7 @@
 import ccxt
 import pandas as pd
 
-exchange = ccxt.bybit()
+exchange = ccxt.binance()
 
 def fetch_market_data(
     symbol='BTC/USDT',
