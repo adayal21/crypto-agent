@@ -29,6 +29,15 @@ st.set_page_config(
 st.title("Crypto Agent Dashboard")
 
 trades = load_trades()
+
+if trades.empty:
+
+    st.warning(
+        "No trade history available yet."
+    )
+
+    st.stop()
+
 portfolios = load_portfolios(trades)
 
 if portfolios.empty:

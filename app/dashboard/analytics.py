@@ -17,20 +17,20 @@ TRADE_HISTORY_FILE = (
     / "trade_history.csv"
 )
 
-PORTFOLIO_FILES = {
+def get_portfolio_file(
+    asset_symbol
+):
 
-    "BTC/USD":
-        RUNTIME_DATA_DIR
-        / "btc_portfolio.json",
+    normalized_symbol = (
+        asset_symbol
+        .lower()
+        .replace("/", "_")
+    )
 
-    "ETH/USD":
+    return (
         RUNTIME_DATA_DIR
-        / "eth_portfolio.json",
-
-    "SOL/USD":
-        RUNTIME_DATA_DIR
-        / "sol_portfolio.json"
-}
+        / f"{normalized_symbol}_portfolio.json"
+    )
 
 # =========================
 # TRADE COLUMNS
@@ -55,15 +55,27 @@ TRADE_COLUMNS = [
 
 def load_trades():
 
+    from pandas.errors import (
+        EmptyDataError
+    )
+
     if not TRADE_HISTORY_FILE.exists():
 
         return pd.DataFrame(
             columns=TRADE_COLUMNS
         )
 
-    trades = pd.read_csv(
-        TRADE_HISTORY_FILE
-    )
+    try:
+
+        trades = pd.read_csv(
+            TRADE_HISTORY_FILE
+        )
+
+    except EmptyDataError:
+
+        return pd.DataFrame(
+            columns=TRADE_COLUMNS
+        )
 
     # Ensure backward compatibility
     for column in TRADE_COLUMNS:
@@ -73,6 +85,8 @@ def load_trades():
             trades[column] = None
 
     trades = trades[TRADE_COLUMNS]
+
+    return trades
 
     # =========================
     # TYPE CONVERSIONS
@@ -114,94 +128,122 @@ def load_trades():
 
 def load_portfolios(trades):
 
-    rows = []
+    portfolio_rows = []
 
-    for (
-        asset_symbol,
-        file_path
-    ) in PORTFOLIO_FILES.items():
+    portfolio_files = (
+        RUNTIME_DATA_DIR.glob(
+            "*_portfolio.json"
+        )
+    )
 
-        if file_path.exists():
+    for portfolio_file in portfolio_files:
+
+        try:
 
             with open(
-                file_path,
+                portfolio_file,
                 "r"
             ) as file:
 
                 portfolio = json.load(file)
 
-        else:
+            asset_symbol = (
+                portfolio
+                .get(
+                    "asset_symbol",
+                    portfolio_file
+                    .stem
+                    .replace(
+                        "_portfolio",
+                        ""
+                    )
+                    .upper()
+                    .replace(
+                        "_",
+                        "/"
+                    )
+                )
+            )
 
-            portfolio = {
-                "cash_balance": 10000,
-                "asset_holdings": 0,
-                "avg_entry_price": 0,
-                "highest_unrealized_pnl": 0
-            }
+            latest_price = 0
 
-        latest_price = get_latest_price(
-            trades,
-            asset_symbol,
-            portfolio.get(
-                "avg_entry_price",
+            if not trades.empty:
+
+                asset_trades = trades[
+                    trades[
+                        "asset_symbol"
+                    ]
+                    == asset_symbol
+                ]
+
+                if not asset_trades.empty:
+
+                    latest_price = (
+                        asset_trades
+                        .iloc[-1]
+                        ["asset_price"]
+                    )
+
+            holdings = portfolio.get(
+                "asset_holdings",
                 0
             )
-        )
 
-        asset_holdings = portfolio.get(
-            "asset_holdings",
-            0
-        )
+            cash_balance = portfolio.get(
+                "cash_balance",
+                0
+            )
 
-        cash_balance = portfolio.get(
-            "cash_balance",
-            0
-        )
+            position_value = (
+                holdings
+                * latest_price
+            )
 
-        position_value = (
-            asset_holdings
-            * latest_price
-        )
+            portfolio_value = (
+                cash_balance
+                + position_value
+            )
 
-        portfolio_value = (
-            cash_balance
-            + position_value
-        )
+            portfolio_rows.append({
 
-        rows.append({
+                "asset_symbol":
+                    asset_symbol,
 
-            "asset_symbol":
-                asset_symbol,
+                "cash_balance":
+                    cash_balance,
 
-            "cash_balance":
-                cash_balance,
+                "asset_holdings":
+                    holdings,
 
-            "asset_holdings":
-                asset_holdings,
+                "avg_entry_price":
+                    portfolio.get(
+                        "avg_entry_price",
+                        0
+                    ),
 
-            "avg_entry_price":
-                portfolio.get(
-                    "avg_entry_price",
-                    0
-                ),
+                "latest_price":
+                    latest_price,
 
-            "latest_price":
-                latest_price,
+                "position_value":
+                    position_value,
 
-            "position_value":
-                position_value,
+                "portfolio_value":
+                    portfolio_value,
 
-            "portfolio_value":
-                portfolio_value,
+                "highest_unrealized_pnl":
+                    portfolio.get(
+                        "highest_unrealized_pnl",
+                        0
+                    )
+            })
 
-            "highest_unrealized_pnl":
-                portfolio.get(
-                    "highest_unrealized_pnl",
-                    0
-                )
-        })
+        except Exception:
 
-    return pd.DataFrame(rows)
+            continue
+
+    return pd.DataFrame(
+        portfolio_rows
+    )
 
 # =========================
 # GET LATEST PRICE

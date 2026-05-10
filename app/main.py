@@ -42,9 +42,15 @@ from paper_trading.portfolio_manager import (
 )
 
 ASSETS = [
+
     "BTC/USD",
     "ETH/USD",
-    "SOL/USD"
+    "SOL/USD",
+
+    "LINK/USD",
+    "AVAX/USD",
+    "ADA/USD"
+
 ]
 
 # =========================
