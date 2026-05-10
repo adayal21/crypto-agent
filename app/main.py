@@ -7,6 +7,10 @@ from logger.market_logger import (
     log_market_cycle
 )
 
+from config.settings import (
+    ENABLE_STREAMLIT
+)
+
 from market_data.market_data import (
     fetch_market_data
 )
@@ -57,33 +61,38 @@ ASSETS = [
 # START STREAMLIT DASHBOARD
 # =========================
 
-try:
+from config.settings import (
+    ENABLE_STREAMLIT
+)
 
-    subprocess.Popen([
+if ENABLE_STREAMLIT:
+    try:
 
-        sys.executable,
-        "-m",
-        "streamlit",
-        "run",
-        "app/dashboard/dashboard.py",
+        subprocess.Popen([
 
-        "--server.address=0.0.0.0",
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            "app/dashboard/dashboard.py",
 
-        "--server.port=8501"
+            "--server.address=0.0.0.0",
 
-    ])
+            "--server.port=8501"
 
-    print(
-        "\nStreamlit dashboard launched successfully."
-    )
+        ])
 
-except Exception as e:
+        print(
+            "\nStreamlit dashboard launched successfully."
+        )
 
-    print(
-        "\nFailed to launch Streamlit dashboard:"
-    )
+    except Exception as e:
 
-    print(e)
+        print(
+            "\nFailed to launch Streamlit dashboard:"
+        )
+
+        print(e)
 
 # =========================
 # CONTINUOUS LOOP

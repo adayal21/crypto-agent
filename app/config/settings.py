@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+ENABLE_STREAMLIT = False
 
 # =========================
 # PROJECT ROOT
