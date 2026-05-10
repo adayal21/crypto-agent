@@ -23,9 +23,9 @@ from strategies.position_management_engine import evaluate_position_management
 from strategies.trade_setup_engine import detect_trade_setup
 
 ASSETS = [
-    "BTC/USDT",
-    "ETH/USDT",
-    "SOL/USDT"
+    "BTC/USD",
+    "ETH/USD",
+    "SOL/USD"
 ]
 
 STARTING_BALANCE = 10000

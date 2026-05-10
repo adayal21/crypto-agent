@@ -1,10 +1,14 @@
 import ccxt
 import pandas as pd
 
-exchange = ccxt.binance()
+exchange = ccxt.coinbase({
+
+    "enableRateLimit": True
+
+})
 
 def fetch_market_data(
-    symbol='BTC/USDT',
+    symbol='BTC/USD',
     timeframe='5m',
     limit=100
 ):

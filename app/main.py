@@ -42,9 +42,9 @@ from paper_trading.portfolio_manager import (
 )
 
 ASSETS = [
-    "BTC/USDT",
-    "ETH/USDT",
-    "SOL/USDT"
+    "BTC/USD",
+    "ETH/USD",
+    "SOL/USD"
 ]
 
 # =========================

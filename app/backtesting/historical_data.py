@@ -7,7 +7,11 @@ import pandas as pd
 
 DATA_DIR = "data"
 
-exchange = ccxt.binance()
+exchange = ccxt.coinbase({
+
+    "enableRateLimit": True
+
+})
 
 
 def get_cache_path(

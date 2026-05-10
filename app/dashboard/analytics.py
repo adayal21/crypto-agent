@@ -19,15 +19,15 @@ TRADE_HISTORY_FILE = (
 
 PORTFOLIO_FILES = {
 
-    "BTC/USDT":
+    "BTC/USD":
         RUNTIME_DATA_DIR
         / "btc_portfolio.json",
 
-    "ETH/USDT":
+    "ETH/USD":
         RUNTIME_DATA_DIR
         / "eth_portfolio.json",
 
-    "SOL/USDT":
+    "SOL/USD":
         RUNTIME_DATA_DIR
         / "sol_portfolio.json"
 }
