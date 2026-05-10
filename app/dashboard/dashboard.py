@@ -141,7 +141,7 @@ st.dataframe(
             "highest_unrealized_pnl"
         ]
     ],
-    use_container_width=True,
+    width='stretch',
     hide_index=True
 )
 
@@ -220,7 +220,7 @@ else:
 
     st.dataframe(
         closed_trades,
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -239,6 +239,6 @@ else:
 
     st.dataframe(
         recent_trades,
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
