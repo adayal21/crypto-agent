@@ -1,11 +1,13 @@
 def generate_market_state(
-        df_5m,
+        df_15m,
         df_1h
     ):
 
-    market_state = generate_structured_market_state(
-        df_5m,
-        df_1h
+    market_state = (
+        generate_structured_market_state(
+            df_15m,
+            df_1h
+        )
     )
 
     readable_market_state = f"""
@@ -26,6 +28,12 @@ MACD State:
 Volatility State:
 {market_state["volatility_state"]}
 
+Trend Strength:
+{market_state["trend_strength"]}
+
+Market Regime:
+{market_state["market_regime"]}
+
 Trade Bias:
 {market_state["trade_bias"]}
 
@@ -40,18 +48,22 @@ Volume State:
 
 
 def generate_structured_market_state(
-        df_5m,
+        df_15m,
         df_1h
     ):
 
-    # Use the latest 5-minute candle as the current market snapshot.
-    latest = df_5m.iloc[-1]
+    latest = df_15m.iloc[-1]
 
     # =========================
     # TREND STATE
     # =========================
 
-    if latest['close'] > latest['ema_20']:
+    trend_bullish = (
+        latest['ema_20']
+        > latest['ema_50']
+    )
+
+    if trend_bullish:
 
         trend_state = "bullish"
 
@@ -59,15 +71,13 @@ def generate_structured_market_state(
 
         trend_state = "bearish"
 
-    higher_tf_bullish = (
-        df_1h.iloc[-1]['close']
-        > df_1h.iloc[-1]['ema_20']
-    )
+    # =========================
+    # HIGHER TIMEFRAME
+    # =========================
 
-    # EMA slope shows whether the short-term trend is gaining strength.
-    ema_slope = (
-        latest['ema_20']
-        - df_5m.iloc[-5]['ema_20']
+    higher_tf_bullish = (
+        df_1h.iloc[-1]['ema_20']
+        > df_1h.iloc[-1]['ema_50']
     )
 
     if higher_tf_bullish:
@@ -81,10 +91,15 @@ def generate_structured_market_state(
         higher_tf_state = (
             "higher timeframe bearish"
         )
-    
+
     # =========================
     # TREND ACCELERATION
     # =========================
+
+    ema_slope = (
+        latest['ema_20']
+        - df_15m.iloc[-5]['ema_20']
+    )
 
     if ema_slope > 0:
 
@@ -97,26 +112,20 @@ def generate_structured_market_state(
         trend_acceleration = (
             "trend weakening"
         )
-    
+
     # =========================
     # RSI STATE
     # =========================
 
     rsi = latest['rsi']
 
-    if rsi < 30:
-
-        momentum_state = (
-            "oversold reversal zone"
-        )
-
-    elif rsi < 45:
+    if rsi < 35:
 
         momentum_state = (
             "weak bearish momentum"
         )
 
-    elif rsi < 60:
+    elif rsi < 55:
 
         momentum_state = (
             "neutral momentum"
@@ -154,12 +163,18 @@ def generate_structured_market_state(
     # VOLATILITY STATE
     # =========================
 
-    atr = latest['atr']
+    atr_pct = latest['atr_pct']
 
-    if atr > 300:
+    if atr_pct > 1.5:
 
         volatility_state = (
             "high volatility"
+        )
+
+    elif atr_pct < 0.25:
+
+        volatility_state = (
+            "compressed volatility"
         )
 
     else:
@@ -169,53 +184,62 @@ def generate_structured_market_state(
         )
 
     # =========================
-    # TRADE BIAS
+    # ADX TREND STRENGTH
     # =========================
 
-    if (
-        trend_state == "bullish"
-        and "bullish" in macd_state
-        and "strong bullish" in momentum_state
-    ):
+    adx = latest['adx']
 
-        # Trend, momentum, and MACD all point in the same direction.
-        trade_bias = (
-            "potential breakout continuation"
+    if adx >= 25:
+
+        trend_strength = (
+            "strong trend"
         )
 
-    elif (
-        trend_state == "bearish"
-        and "oversold" in momentum_state
-    ):
+    elif adx >= 18:
 
-        trade_bias = (
-            "possible reversal setup"
-        )
-
-    elif (
-        "overbought" in momentum_state
-    ):
-
-        trade_bias = (
-            "late entry risk"
+        trend_strength = (
+            "moderate trend"
         )
 
     else:
 
-        trade_bias = (
-            "unclear market structure"
+        trend_strength = (
+            "weak trend"
+        )
+
+    # =========================
+    # MARKET REGIME
+    # =========================
+
+    if (
+        adx < 15
+        or latest['ema_spread_pct'] < 0.15
+    ):
+
+        market_regime = (
+            "choppy ranging market"
+        )
+
+    elif (
+        atr_pct < 0.25
+    ):
+
+        market_regime = (
+            "low volatility compression"
+        )
+
+    else:
+
+        market_regime = (
+            "tradable trend environment"
         )
 
     # =========================
     # VOLUME STATE
     # =========================
 
-    if (
-        latest['volume']
-        > latest['volume_sma_20']
-    ):
+    if latest['volume_ratio'] >= 1.2:
 
-        # High relative volume means current move has stronger participation.
         volume_state = (
             "high relative volume"
         )
@@ -226,12 +250,35 @@ def generate_structured_market_state(
             "weak relative volume"
         )
 
+    # =========================
+    # TRADE BIAS
+    # =========================
+
+    if (
+        trend_state == "bullish"
+        and trend_strength == "strong trend"
+        and market_regime
+        == "tradable trend environment"
+    ):
+
+        trade_bias = (
+            "trend continuation"
+        )
+
+    else:
+
+        trade_bias = (
+            "unclear market structure"
+        )
+
     return {
         "trend_state": trend_state,
         "momentum_state": momentum_state,
         "trend_acceleration": trend_acceleration,
         "macd_state": macd_state,
         "volatility_state": volatility_state,
+        "trend_strength": trend_strength,
+        "market_regime": market_regime,
         "trade_bias": trade_bias,
         "higher_timeframe_state": higher_tf_state,
         "volume_state": volume_state

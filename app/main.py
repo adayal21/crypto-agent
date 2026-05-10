@@ -107,7 +107,7 @@ while True:
 
             df_5m = fetch_market_data(
                 symbol=asset_symbol,
-                timeframe='5m'
+                timeframe='15m'
             )
 
             df_1h = fetch_market_data(

@@ -1,6 +1,6 @@
 # Crypto Agent
 
-A local Python paper-trading framework for BTC/USDT, ETH/USDT, and SOL/USDT.
+A local Python paper-trading framework for BTC/USD, ETH/USD, and SOL/USD.
 
 The system combines:
 - deterministic setup detection
@@ -33,9 +33,9 @@ while the LLM is used only for:
   - 1-hour timeframe for higher-timeframe confirmation
 
 Supported assets:
-- BTC/USDT
-- ETH/USDT
-- SOL/USDT
+- BTC/USD
+- ETH/USD
+- SOL/USD
 
 ---
 

@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 market_analysis_log.txt
+data/*.csv
+.env
